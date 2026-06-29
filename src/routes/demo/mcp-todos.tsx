@@ -1,35 +1,35 @@
-import { useCallback, useState, useEffect } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useState } from "react";
 
 type Todo = {
-  id: number
-  title: string
-}
+  id: number;
+  title: string;
+};
 
-export const Route = createFileRoute('/demo/mcp-todos')({
+export const Route = createFileRoute("/demo/mcp-todos")({
   component: ORPCTodos,
-})
+});
 
 function ORPCTodos() {
-  const [todos, setTodos] = useState<Todo[]>([])
+  const [todos, setTodos] = useState<Todo[]>([]);
 
   useEffect(() => {
-    const eventSource = new EventSource('/demo/api/mcp-todos')
+    const eventSource = new EventSource("/demo/api/mcp-todos");
     eventSource.onmessage = (event) => {
-      setTodos(JSON.parse(event.data))
-    }
-    return () => eventSource.close()
-  }, [])
+      setTodos(JSON.parse(event.data));
+    };
+    return () => eventSource.close();
+  }, []);
 
-  const [todo, setTodo] = useState('')
+  const [todo, setTodo] = useState("");
 
   const submitTodo = useCallback(async () => {
-    await fetch('/demo/api/mcp-todos', {
-      method: 'POST',
+    await fetch("/demo/api/mcp-todos", {
+      method: "POST",
       body: JSON.stringify({ title: todo }),
-    })
-    setTodo('')
-  }, [todo])
+    });
+    setTodo("");
+  }, [todo]);
 
   return (
     <main className="demo-page demo-center">
@@ -49,8 +49,8 @@ function ORPCTodos() {
             value={todo}
             onChange={(e) => setTodo(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                submitTodo()
+              if (e.key === "Enter") {
+                submitTodo();
               }
             }}
             placeholder="Enter a new todo..."
@@ -66,5 +66,5 @@ function ORPCTodos() {
         </div>
       </section>
     </main>
-  )
+  );
 }
