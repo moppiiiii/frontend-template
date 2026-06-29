@@ -19,7 +19,6 @@
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.26.0",
     "@faker-js/faker": "^10.3.0",
-    "@modelcontextprotocol/sdk": "^1.27.1",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
     "@t3-oss/env-core": "^0.13.10",
