@@ -17,4 +17,4 @@ TanStack Start + Supabase のフロントエンドテンプレート。
 
 ## 仕上げ
 
-変更後は `bunx tsc --noEmit` と `bun run check`（oxlint ＋ oxfmt）を通す。整形は `bun run format`（oxfmt）。
+変更後は `bun run check`（tsgo ＋ oxlint ＋ oxfmt）を通す。整形は `bun run format`（oxfmt）。型のみは `bun run typecheck`（tsgo）。

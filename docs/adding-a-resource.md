@@ -122,4 +122,4 @@ function PostsPage() {
 - [ ] `server/<resource>.ts`（serverFn ＋ queryOptions）
 - [ ] 必要なら `hooks/use-*.ts`（楽観的更新）
 - [ ] `components/<resource>/` と `routes/`
-- [ ] `bunx tsc --noEmit` と `bun run check`（oxlint ＋ oxfmt）が通る
+- [ ] `bun run check`（tsgo ＋ oxlint ＋ oxfmt）が通る

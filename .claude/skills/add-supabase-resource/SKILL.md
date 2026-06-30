@@ -39,8 +39,7 @@ description: このテンプレートに新しい Supabase テーブル/リソ�
 実装後に必ず通す:
 
 ```bash
-bunx tsc --noEmit      # 型
-bun run check          # oxlint ＋ oxfmt --check
+bun run check          # tsgo（型）＋ oxlint ＋ oxfmt --check
 bun run format         # oxfmt（整形を書き込む）
 ```
 
