@@ -27,5 +27,13 @@
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "editor.formatOnSave": true,
-  "oxc.fmt.experimental": true
+  "oxc.fmt.experimental": true,
+  "cSpell.customDictionaries": {
+    "custom-dictionary-workspace": {
+      "name": "custom-dictionary-workspace",
+      "path": "${workspaceFolder:frontend-template}/.cspell/custom-dictionary-workspace.txt",
+      "addWords": true,
+      "scope": "workspace"
+    }
+  }
 }
