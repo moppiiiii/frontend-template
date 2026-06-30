@@ -1,9 +1,9 @@
 {
-  "projectName": "frontend-template",
+  "projectName": "fe-template",
   "mode": "file-router",
   "typescript": true,
   "packageManager": "bun",
-  "includeExamples": true,
+  "includeExamples": false,
   "tailwind": true,
   "addOnOptions": {},
   "envVarValues": {},
@@ -16,10 +16,10 @@
     "biome",
     "cloudflare",
     "form",
-    "mcp",
     "shadcn",
     "t3env",
     "table",
+    "store",
     "tanstack-query"
   ]
 }
