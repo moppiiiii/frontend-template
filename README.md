@@ -1,246 +1,157 @@
-Welcome to your new TanStack Start app! 
+# fe-template
 
-> 設計思想・アーキテクチャ・リソース追加手順は [`docs/`](./docs/README.md) を参照してください。
+**TanStack Start + Supabase** のフロントエンドテンプレート。
 
-# Getting Started
+型安全な Supabase アクセス層・楽観的更新・SSR 対応のデータフローをあらかじめ組み込み、リソース／画面／フォームの追加を**規約化**してある。設計の正本は [`docs/`](./docs/README.md)、定型作業は Claude Code の [skill](#claude-code-skill) に従う。
 
-To run this application:
+---
+
+## 技術スタック
+
+| 領域 | 採用 |
+| --- | --- |
+| フレームワーク | [TanStack Start](https://tanstack.com/start)（React 19・SSR） |
+| ルーティング | [TanStack Router](https://tanstack.com/router)（ファイルベース） |
+| データ取得・キャッシュ | [TanStack Query](https://tanstack.com/query)（+ Router SSR 統合） |
+| フォーム | [TanStack Form](https://tanstack.com/form) |
+| 状態・テーブル | TanStack Store / TanStack Table |
+| バックエンド | [Supabase](https://supabase.com)（`@supabase/ssr` + `supabase-js`） |
+| エラーハンドリング | [neverthrow](https://github.com/supermacro/neverthrow)（`Result` 型） |
+| バリデーション | [Zod](https://zod.dev)（v4） |
+| 環境変数 | [`@t3-oss/env-core`](https://env.t3.gg)（型安全） |
+| スタイリング | [Tailwind CSS](https://tailwindcss.com)（v4）/ [Radix UI](https://www.radix-ui.com) / shadcn 流のプリミティブ |
+| Lint / Format | [oxlint](https://oxc.rs) / [oxfmt](https://oxc.rs) |
+| 型チェック | [tsgo](https://github.com/microsoft/typescript-go)（TypeScript Native Preview） |
+| テスト | [Vitest](https://vitest.dev) + Testing Library（jsdom） |
+| デプロイ | [Cloudflare Workers](https://developers.cloudflare.com/workers/)（Wrangler + Vite plugin） |
+
+ランタイムは **Bun**（パッケージ管理・スクリプト実行とも）。
+
+---
+
+## はじめに
 
 ```bash
 bun install
-bun --bun run dev
 ```
 
-# Building For Production
-
-To build this application for production:
+環境変数を用意する（`.env.example` をコピーして Supabase の値を入れる）:
 
 ```bash
-bun --bun run build
+cp .env.example .env
 ```
 
-## Testing
-
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
+開発サーバーを起動（http://localhost:3000）:
 
 ```bash
-bun --bun run test
+bun run dev
 ```
 
-## Styling
+---
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+## スクリプト
 
-### Removing Tailwind CSS
+| コマンド | 内容 |
+| --- | --- |
+| `bun run dev` | 開発サーバー（port 3000） |
+| `bun run build` | 本番ビルド |
+| `bun run preview` | ビルド結果のプレビュー |
+| `bun run test` | Vitest 実行 |
+| `bun run typecheck` | 型チェック（tsgo） |
+| `bun run lint` | oxlint |
+| `bun run format` | oxfmt（整形を書き込む） |
+| `bun run check` | **仕上げ**：tsgo ＋ oxlint ＋ oxfmt --check |
+| `bun run generate-routes` | `routeTree.gen.ts` を再生成（`tsr generate`） |
+| `bun run deploy` | ビルドして Cloudflare へデプロイ |
 
-If you prefer not to use Tailwind CSS:
+> 変更後は必ず `bun run check` を通す。整形のみは `bun run format`、型のみは `bun run typecheck`。
 
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Uninstall the packages: `bun install @tailwindcss/vite tailwindcss -D`
+---
 
-## Linting & Formatting
+## ディレクトリ構成
 
-This project uses [oxlint](https://oxc.rs/docs/guide/usage/linter) for linting and [oxfmt](https://oxc.rs/docs/guide/usage/formatter) for formatting. The following scripts are available:
+配置規約の正本は [`docs/architecture.md`](./docs/architecture.md)。要点だけ：
 
+```
+src/
+  routes/                 # ファイルルート。薄く保つ（loader + 画面シェルのみ）
+  components/
+    ui/                   # shadcn 流のプリミティブ（Button / Input 等）
+    <feature>/            # 機能ごとの画面パーツ（例: todos/）
+  server/                 # serverFn（fetch も mutation も 1 リソース 1 ファイル）
+  hooks/                  # 楽観的更新の mutation フック
+  schemas/                # Zod スキーマ・appSchema（型の単一の真実）
+  lib/supabase/           # Supabase クライアント（client / server）
+  integrations/           # TanStack Query のプロバイダ等
+  env.ts                  # 型安全な環境変数（t3-env）
+  router.tsx              # ルーター生成・SSR Query 統合
+  routeTree.gen.ts        # 自動生成（手で触らない）
+```
+
+**import エイリアスは `@/`**（`@/*` → `./src/*`）。環境変数は必ず `@/env` 経由で、`import.meta.env.X` を直接使わない。
+
+### データフロー（読み取り）
+
+```
+route loader → queryClient.ensureQueryData(<resource>QueryOptions())
+            → get<Resource>()  [serverFn]
+              → $supabaseServer()("@select/<table>", { filter })
+component   → useSuspenseQuery(<resource>QueryOptions())  で同じキャッシュを購読
+```
+
+書き込みは serverFn（`@insert|update|delete/<table>`）を楽観フック（`onMutate` / `onError` / `onSettled`）から呼ぶ。詳細は [`docs/data-access.md`](./docs/data-access.md)。
+
+---
+
+## 設計ドキュメント（正本）
+
+データアクセス層の設計思想・規約は `docs/` を参照する。**実装前に必ず読む。**
+
+- [`docs/README.md`](./docs/README.md) — 核となる設計思想
+- [`docs/architecture.md`](./docs/architecture.md) — ディレクトリ構成・配置規約・データフロー
+- [`docs/data-access.md`](./docs/data-access.md) — Supabase アクセス層（型安全エンジン・entity/response・embed・適用範囲）
+- [`docs/adding-a-resource.md`](./docs/adding-a-resource.md) — リソース追加手順
+
+---
+
+## Claude Code skill
+
+このテンプレートには定型作業を規約どおりに行うための [Claude Code](https://claude.com/claude-code) skill を同梱している。`/<skill 名>` で呼び出せる。
+
+| skill | 用途 |
+| --- | --- |
+| `add-supabase-resource` | 新しい Supabase テーブル／リソースの CRUD を追加（schema → appSchema → serverFn → 楽観フック → route） |
+| `add-route` | 画面ルートを追加（薄い route ＋ loader ＋ `useSuspenseQuery`、search バリデーション、認証ガード） |
+| `add-form` | 入力フォームを追加（検証は serverFn の `.validator(zod)`、送信は楽観フック経由） |
+
+---
+
+## UI コンポーネントの追加
+
+[shadcn/ui](https://ui.shadcn.com) のプリミティブを `src/components/ui/` に置く方針。
 
 ```bash
-bun --bun run lint      # oxlint
-bun --bun run format    # oxfmt (write)
-bun --bun run check     # oxlint + oxfmt --check
+bunx shadcn@latest add button
 ```
 
+---
 
-## Deploy to Cloudflare Workers
+## デプロイ（Cloudflare Workers）
 
-This project uses the Cloudflare Vite plugin (configured in `vite.config.ts`) and `wrangler.jsonc`:
-
-1. Install Wrangler: `npm install -g wrangler`
-2. Authenticate: `wrangler login`
-3. Deploy: `npx wrangler deploy`
-
-For production env vars, run `wrangler secret put MY_VAR` for each secret listed in `.env.example`. Public (non-secret) vars go in `wrangler.jsonc` under `vars`.
-
-KV, D1, R2, and Durable Object bindings are configured in `wrangler.jsonc` — see https://developers.cloudflare.com/workers/wrangler/configuration/.
-
-
-## Shadcn
-
-Add components using the latest version of [Shadcn](https://ui.shadcn.com/).
+Cloudflare Vite plugin（`vite.config.ts`）と `wrangler.jsonc` で構成済み。
 
 ```bash
-pnpm dlx shadcn@latest add button
+bun run deploy        # build + wrangler deploy
 ```
 
+- 本番のシークレットは `.env.example` の各値について `wrangler secret put <NAME>` で登録する。
+- 公開してよい（非シークレットな）変数は `wrangler.jsonc` の `vars` に置く。
+- KV / D1 / R2 / Durable Object のバインディングは `wrangler.jsonc` で設定する（[ドキュメント](https://developers.cloudflare.com/workers/wrangler/configuration/)）。
 
-## T3Env
+---
 
-- You can use T3Env to add type safety to your environment variables.
-- Add Environment variables to the `src/env.mjs` file.
-- Use the environment variables in your code.
+## さらに詳しく
 
-### Usage
-
-```ts
-import { env } from "#/env";
-
-console.log(env.VITE_APP_TITLE);
-```
-
-
-
-
-
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+- [TanStack Start ドキュメント](https://tanstack.com/start)
+- [Supabase ドキュメント](https://supabase.com/docs)
+- このテンプレート固有の規約 → [`docs/`](./docs/README.md)
