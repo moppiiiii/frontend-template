@@ -1,10 +1,11 @@
 import type { Todo } from "@/schemas/todos";
+
 import { TodoItem } from "./todo-item";
 
 export function TodoList({ todos }: { todos: Todo[] }) {
   if (todos.length === 0) {
     return (
-      <p className="py-8 text-center text-muted-foreground">
+      <p className="text-muted-foreground py-8 text-center">
         Todo はまだありません。
       </p>
     );

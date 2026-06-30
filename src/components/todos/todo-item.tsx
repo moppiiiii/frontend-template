@@ -27,7 +27,7 @@ export function TodoItem({ todo }: { todo: Todo }) {
         {todo.title}
       </span>
       {todo.category && (
-        <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+        <span className="bg-muted text-muted-foreground rounded px-2 py-0.5 text-xs">
           {todo.category.name}
         </span>
       )}

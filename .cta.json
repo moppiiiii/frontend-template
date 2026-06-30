@@ -13,7 +13,7 @@
   "version": 1,
   "framework": "react",
   "chosenAddOns": [
-    "biome",
+    "oxlint",
     "cloudflare",
     "form",
     "shadcn",

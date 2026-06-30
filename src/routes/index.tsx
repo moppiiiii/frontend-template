@@ -1,5 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+
 import { AddTodoForm } from "@/components/todos/add-todo-form";
 import { TodoList } from "@/components/todos/todo-list";
 import { todosQueryOptions } from "@/server/todos";

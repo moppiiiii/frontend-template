@@ -1,5 +1,7 @@
 Welcome to your new TanStack Start app! 
 
+> 設計思想・アーキテクチャ・リソース追加手順は [`docs/`](./docs/README.md) を参照してください。
+
 # Getting Started
 
 To run this application:
@@ -40,13 +42,13 @@ If you prefer not to use Tailwind CSS:
 
 ## Linting & Formatting
 
-This project uses [Biome](https://biomejs.dev/) for linting and formatting. The following scripts are available:
+This project uses [oxlint](https://oxc.rs/docs/guide/usage/linter) for linting and [oxfmt](https://oxc.rs/docs/guide/usage/formatter) for formatting. The following scripts are available:
 
 
 ```bash
-bun --bun run lint
-bun --bun run format
-bun --bun run check
+bun --bun run lint      # oxlint
+bun --bun run format    # oxfmt (write)
+bun --bun run check     # oxlint + oxfmt --check
 ```
 
 

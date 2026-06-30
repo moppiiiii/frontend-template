@@ -1,6 +1,8 @@
 import { createBrowserClient } from "@supabase/ssr";
+
 import { env } from "@/env";
 import { appSchema } from "@/schemas";
+
 import { createSupabaseClient } from "./query";
 
 /** ブラウザ用の生クライアント。直叩き（Realtime 等）が要るときだけ使う。 */
