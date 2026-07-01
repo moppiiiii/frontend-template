@@ -35,6 +35,7 @@ src/
 | サーバーで動かす処理（fetch / mutation） | `server/<resource>.ts` |
 | zod スキーマ・取得クエリ | `schemas/<resource>.ts` |
 | 楽観的更新などのクライアントロジック | `hooks/use-*.ts` |
+| エラー / 404 / pending の境界 UI | `components/boundaries/` |
 | 横断的な純粋ヘルパー | `lib/` |
 
 原則:
@@ -42,6 +43,23 @@ src/
 - **routes は薄く**。loader で fetch を起動し、ロジックは `server/` `hooks/` `components/` から import するだけ。
 - **フォルダは横に並べる**。深い階層は掘らない（`server/todos.ts` であって `server/todos/queries/...` ではない）。
 - **環境変数は `env.ts` 経由**。`import.meta.env.X` を直接使わない。
+
+## エラー / 404 / pending 境界
+
+例外・未一致 URL・ローダー待ちのフォールバックは **`router.tsx` の `default*Component` で 1 度だけ定義**し、全ルートが継承する（認証ガードと同じ「define once」方針）。個別ルートで `errorComponent` 等を渡せば上書きできる。
+
+```
+router.tsx
+  defaultErrorComponent    → components/boundaries/root-error.tsx     # throw の受け皿（再試行 + ホーム）
+  defaultNotFoundComponent → components/boundaries/not-found.tsx      # 未一致 URL / notFound()
+  defaultPendingComponent  → components/boundaries/route-pending.tsx  # ローダー待ちの骨組み
+```
+
+これら 3 つは「分類（エラーか否か）」ではなく「役割（router の境界フォールバック＝一緒に配線・継承される）」で括り、`components/boundaries/` に同居させる。
+
+- **`useSuspenseQuery` の fetch 失敗は throw として浮上**し、最も近い `errorComponent`（既定は上記）に捕まる。境界が無いと画面全体が白落ちするため、テンプレの既定として全ルートに敷いている。
+- **`redirect()` は例外ではなく制御フロー**。未ログイン→`/login` のガード（`_authed/route.tsx`）は `errorComponent` には落ちず、Router が遷移として処理する。
+- 特定ルートだけ独自のエラー表示にしたいときは、その route に `errorComponent` / `notFoundComponent` / `pendingComponent` を直接書く（既定より優先される）。
 
 ## データフロー
 
