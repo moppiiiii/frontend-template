@@ -1,0 +1,25 @@
+name: PR Check
+
+on:
+  pull_request:
+
+# 同一 PR / ブランチで新しい push が来たら古い実行をキャンセルする
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Type / Lint / Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        # bun のバージョンは .bun-version から自動検出される
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check (tsgo + oxlint + oxfmt)
+        run: bun run check
