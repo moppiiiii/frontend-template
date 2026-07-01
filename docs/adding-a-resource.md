@@ -125,6 +125,9 @@ function PostsPage() {
 }
 ```
 
+> ログイン必須のリソースなら route は `src/routes/_authed/posts.tsx`（URL: `/posts`）に置く。
+> `_authed/route.tsx` のガードを継承するので、route 側にガードは書かない（[architecture.md](./architecture.md#認証ガード保護ルート) 参照）。todos ホームも `src/routes/_authed/index.tsx` にある。
+
 ## チェックリスト
 
 - [ ] `schemas/<resource>.ts`（Entity → Response、操作断片）

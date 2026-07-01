@@ -9,8 +9,8 @@ TanStack Start のファイルベースルーティング規約と、このテ�
 
 ## まず読む（正本）
 
-- 配置規約とデータフローの正本は **`docs/architecture.md`**（「どこに何を置くか」「routes は薄く」「データフロー」）。
-- 既存の `src/routes/index.tsx`（loader + `useSuspenseQuery` 購読）と `src/routes/__root.tsx` を雛形にする。
+- 配置規約とデータフローの正本は **`docs/architecture.md`**（「どこに何を置くか」「routes は薄く」「データフロー」「認証ガード」）。
+- 既存の `src/routes/_authed/index.tsx`（loader + `useSuspenseQuery` 購読）と `src/routes/__root.tsx` を雛形にする。認証ガードは `src/routes/_authed/route.tsx` を雛形にする。
 - データ層が絡むなら先に `add-supabase-resource` を回し、route はその `queryOptions` を呼ぶだけにする。
 
 ## 守るべき規約（要点）
@@ -24,7 +24,7 @@ TanStack Start のファイルベースルーティング規約と、このテ�
 2. **route は薄く**。`createFileRoute` に載せるのは loader（fetch 起動）と画面シェルのみ。
    ロジック・データ取得は `server/` `hooks/` `components/` から import する。
 
-3. **データ取得は loader で起動 → コンポーネントで `useSuspenseQuery` 購読**（`index.tsx` と同型）。
+3. **データ取得は loader で起動 → コンポーネントで `useSuspenseQuery` 購読**（`_authed/index.tsx` と同型）。
 
    ```tsx
    import { useSuspenseQuery } from "@tanstack/react-query";
@@ -83,29 +83,30 @@ const { page, q } = Route.useSearch();
 
 ## 認証ガード（ログイン必須ページ）
 
-`beforeLoad` でセッションを確認し、無ければリダイレクトする。判定はサーバー側のセッションを正とする（`src/server/todos.ts` の `getSession()` パターンと同じ情報源を使う）。
+**保護ページは pathless レイアウトルート `src/routes/_authed/` の下に置くだけ**でよい。ガードは `_authed/route.tsx` の `beforeLoad` に 1 度だけ書いてあり、配下ルートが継承する（`src/routes/_authed/route.tsx` が正本の雛形）。判定は `userQueryOptions()`（= `getUser` serverFn）を正とする。`getUser` は Cookie のトークンを認証サーバーで検証するため `getSession()` より安全。
 
 ```tsx
-import { createFileRoute, redirect } from "@tanstack/react-router";
+// src/routes/_authed/route.tsx（共有ガード。既存。基本はこれに乗せるだけ）
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/dashboard")({
-  beforeLoad: async ({ location }) => {
-    const session = await getSession(); // server fn 経由でセッション取得
-    if (!session) {
-      throw redirect({
-        to: "/login",
-        search: { redirect: location.href },
-      });
+import { userQueryOptions } from "@/server/auth";
+
+export const Route = createFileRoute("/_authed")({
+  beforeLoad: async ({ context, location }) => {
+    const user = await context.queryClient.ensureQueryData(userQueryOptions());
+    if (!user) {
+      throw redirect({ to: "/login", search: { redirect: location.href } });
     }
+    return { user }; // 配下ルートの context にマージされる（非 null 保証）
   },
-  loader: ({ context }) =>
-    context.queryClient.ensureQueryData(dashboardQueryOptions()),
-  component: Dashboard,
+  component: () => <Outlet />,
 });
 ```
 
-- セッション取得用の serverFn がまだ無ければ、`src/server/auth.ts` 等に切り出してから使う（route 内に Supabase クライアントを直書きしない）。
-- 複数ページで共有するガードは、親レイアウトルートの `beforeLoad` に上げて子で継承させる。
+- **保護ページを増やすとき**は `src/routes/_authed/<name>.tsx` を足すだけ（URL は `/<name>`）。ガードは書かない。配下では `const { user } = Route.useRouteContext()` で非 null の user を使える（`src/routes/_authed/dashboard.tsx` 参照）。
+- **`ensureQueryData` 経由**なので SSR・遷移で二重に叩かず、`use-sign-*` フックのキャッシュ更新と一貫する。route 内に Supabase クライアントを直書きしない。
+- **行レベルの認可は Supabase RLS が正**。ガードは「未ログインを弾く」までを担い、serverFn 側で所有者チェックは書かない。
+- 保護ページが 1 枚だけなら、そのルートに直接同じ `beforeLoad` を書いてもよい（レイアウト不要）。`_authed` という名前は任意で、意味を持つのは先頭の `_`（pathless）だけ。
 
 ## エラー / ローディング表示
 
