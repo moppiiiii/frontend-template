@@ -42,7 +42,17 @@ src/
 
 - **routes は薄く**。loader で fetch を起動し、ロジックは `server/` `hooks/` `components/` から import するだけ。
 - **フォルダは横に並べる**。深い階層は掘らない（`server/todos.ts` であって `server/todos/queries/...` ではない）。
-- **環境変数は `env.ts` 経由**。`import.meta.env.X` を直接使わない。
+- **環境変数は `env.ts` 経由**。`import.meta.env.X` を直接使わない（例: ページ `<title>` は `env.VITE_APP_TITLE` を `__root.tsx` で参照）。
+
+## フォーム
+
+入力フォームは **`@tanstack/react-form`（`useForm` ＋ `form.Field`）** で書く。素の `useState` で値を持たない。
+
+- **検証は `schemas/` の zod を共有する**。`validators: { onSubmit: CredentialsSchema }` のように `.validator()` と同じスキーマを渡し、UI 側で zod を二重定義しない（[data-access.md](./data-access.md) の「スキーマを単一の真実」と同じ方針）。
+- **送信は serverFn を叩くフック（`hooks/use-*`）へ委譲する**。`onSubmit` で `mutation.mutateAsync(value)` を呼び、成功時に遷移、失敗は `mutation.error` として表示する。
+- 1 フォームで複数アクションがあるとき（例: 下書き保存／公開）は `onSubmitMeta` でどのボタンから送信したかを判別する。
+
+雛形は `src/components/auth/login-form.tsx`（`useSignIn` に委譲、`CredentialsSchema` でフィールド検証）。route（`src/routes/login.tsx`）は薄く保ち、search を読んでこのフォームへ渡すだけにする。
 
 ## エラー / 404 / pending 境界
 

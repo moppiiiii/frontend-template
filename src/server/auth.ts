@@ -43,19 +43,6 @@ export const signIn = createServerFn({ method: "POST" })
     return result.user;
   });
 
-export const signUp = createServerFn({ method: "POST" })
-  .validator(CredentialsSchema)
-  .handler(async ({ data }): Promise<User | null> => {
-    const $supabase = $supabaseServer();
-    const { data: result, error } = await $supabase.raw.auth.signUp({
-      email: data.email,
-      password: data.password,
-    });
-    if (error) throw error;
-    // メール確認が有効な場合、確認までは user が返っても session は null。
-    return result.user;
-  });
-
 export const signOut = createServerFn({ method: "POST" }).handler(async () => {
   const $supabase = $supabaseServer();
   const { error } = await $supabase.raw.auth.signOut();

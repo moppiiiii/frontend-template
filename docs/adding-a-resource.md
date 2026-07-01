@@ -111,6 +111,10 @@ export const addPost = createServerFn({ method: "POST" })
 
 `use-toggle-todo.ts` を雛形に、`onMutate` でキャッシュを即時更新 → `onError` で巻き戻し → `onSettled` で `invalidateQueries`。クエリキーは `postsQueryOptions().queryKey` から取得してドリフトを防ぐ。
 
+この楽観フローの回帰は `src/hooks/use-toggle-todo.test.tsx` が押さえている（serverFn をモックして「即時反映 → 失敗で巻き戻し」を検証）。新しいフックにも同型のテストを添えると安全。
+
+**作成/編集フォームを足すとき**は `@tanstack/react-form`（`useForm` ＋ `form.Field`）で書き、検証は `schemas/` の zod（例: `AddPostInput`）を `validators` に渡して共有する。素の `useState` で値を持たない。フォーム本体は `components/<resource>/` に置き、route は薄く保つ。詳細と雛形は [architecture.md](./architecture.md#フォーム)（`src/components/auth/login-form.tsx`）を参照。
+
 ## 5. ルートで使う — `src/routes/posts.tsx`
 
 ```ts

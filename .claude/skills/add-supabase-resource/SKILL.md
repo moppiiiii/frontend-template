@@ -1,6 +1,6 @@
 ---
 name: add-supabase-resource
-description: このテンプレートに新しい Supabase 由来のデータアクセス層（zod スキーマ・serverFn・楽観フック）を追加するときに使う。テーブル/リソースの CRUD だけでなく、認証（auth）・ログイン・サインアップ・セッション取得など Supabase を叩く serverFn を足す場合も含む。「テーブルを足して」「リソースを追加」「<名前>の CRUD を作って」「todos と同じパターンで <名前> を作って」「supabase の auth を作って」「認証/ログイン/サインアップを作って」「新しい zod スキーマ/serverFn を足して」等で発火。schema は必ず src/schemas/ に置く（src/server/ に zod を定義しない）、appSchema 合流 → serverFn → 楽観フック → route の規約を守って実装する。
+description: このテンプレートに新しい Supabase 由来のデータアクセス層（zod スキーマ・serverFn・楽観フック）を追加するときに使う。テーブル/リソースの CRUD だけでなく、認証（auth）・ログイン・セッション取得など Supabase を叩く serverFn を足す場合も含む。「テーブルを足して」「リソースを追加」「<名前>の CRUD を作って」「todos と同じパターンで <名前> を作って」「supabase の auth を作って」「認証/ログインを作って」「新しい zod スキーマ/serverFn を足して」等で発火。schema は必ず src/schemas/ に置く（src/server/ に zod を定義しない）、appSchema 合流 → serverFn → 楽観フック → route の規約を守って実装する。
 ---
 
 # Supabase リソースの追加
