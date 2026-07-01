@@ -2,6 +2,8 @@ name: PR Check
 
 on:
   pull_request:
+  push:
+    branches: ["main"]
 
 # 同一 PR / ブランチで新しい push が来たら古い実行をキャンセルする
 concurrency:
