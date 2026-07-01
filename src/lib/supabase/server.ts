@@ -34,11 +34,17 @@ function createSupabaseServerClient() {
 
 /**
  * スキーマ束縛済みのサーバー向けクライアントを生成するファクトリ。
- * Cookie はリクエスト毎なのでモジュール定数にできず、serverFn 内で毎回呼ぶ。
+ * Cookie はリクエスト毎なのでモジュール定数にできず、serverFn 内で毎回 `await` する。
  * `.raw` で素のクライアント（auth など）にアクセスできる。
+ *
+ * ここで一度だけ `getSession()` を呼び、Cookie のトークンを読み込む（必要ならリフレッシュし
+ * `setAll` で Cookie を書き戻す）。これをしないと後続クエリに認証セッションが乗らず、
+ * RLS 越しに 0 件／拒否になり得る。認証判定ではなく Cookie 水和が目的なので `getUser` ではなく
+ * `getSession`（各ハンドラで個別に呼ぶ必要はもう無い）。
  */
-export function $supabaseServer() {
+export async function $supabaseServer() {
   const client = createSupabaseServerClient();
+  await client.auth.getSession();
   const query = createSupabaseClient({ client, schema: appSchema });
   return Object.assign(query, { raw: client });
 }

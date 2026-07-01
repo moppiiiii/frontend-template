@@ -82,8 +82,7 @@ import { $supabaseServer } from "@/lib/supabase/server";
 import { AddPostInput, type Post } from "@/schemas/posts";
 
 export const getPosts = createServerFn().handler(async (): Promise<Post[]> => {
-  const $supabase = $supabaseServer();
-  await $supabase.raw.auth.getSession();
+  const $supabase = await $supabaseServer();
   const result = await $supabase("@select/posts", {
     filter: (q) => q.order("created_at", { ascending: false }),
   });
@@ -97,8 +96,7 @@ export const postsQueryOptions = () =>
 export const addPost = createServerFn({ method: "POST" })
   .validator(AddPostInput)
   .handler(async ({ data }) => {
-    const $supabase = $supabaseServer();
-    await $supabase.raw.auth.getSession();
+    const $supabase = await $supabaseServer();
     const result = await $supabase("@insert/posts", { data });
     if (result.isErr()) throw result.error;
   });

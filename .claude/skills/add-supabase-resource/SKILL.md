@@ -20,7 +20,7 @@ description: このテンプレートに新しい Supabase 由来のデータア
    - 操作は `@select|insert|update|delete/<table>` キーで定義。
 2. **`src/schemas/index.ts` の `appSchema`** に断片をスプレッド合流（単一の真実）。
 3. **serverFn は `src/server/<resource>.ts`** に fetch も mutation も集約。`queryOptions` を併設。
-   - `const $supabase = $supabaseServer()` → 先頭で `await $supabase.raw.auth.getSession()`。
+   - `const $supabase = await $supabaseServer()`。セッション水和（`getSession`）はファクトリ内で一元化済みなので、ハンドラ側で `getSession()` を呼ぶ必要はない。
    - mutation はすべて `createServerFn({ method: "POST" })`（delete も POST）。`result.isErr()` で throw。
 4. **楽観的更新が要るなら `src/hooks/use-<action>-<resource>.ts`**。
    - `useMutation` の `onMutate`（即時キャッシュ更新）→ `onError`（巻き戻し）→ `onSettled`（invalidate）。

@@ -31,7 +31,7 @@ export const todosSchema = createSupabaseSchema({
 呼び出しはキーで行い、キーはコンパイル時に検証される。
 
 ```ts
-const $supabase = $supabaseServer();
+const $supabase = await $supabaseServer();
 const result = await $supabase("@select/todos", { filter: (q) => q.order("created_at") });
 //                              ^^^^^^^^^^^^^^ タイポはコンパイルエラー
 ```
@@ -112,7 +112,7 @@ $supabase("@update/todos", { data: { completed: true }, match: { id } });
 
 ## サーバー / ブラウザ クライアント
 
-- **`$supabaseServer()`** — serverFn 内で使う既定経路。cookie をリクエストごとに読むためファクトリ（毎回呼ぶ）。`.raw` で素のクライアント（auth など）にアクセスできる。
+- **`$supabaseServer()`** — serverFn 内で使う既定経路。cookie をリクエストごとに読むためファクトリ（毎回 `await` する）。生成時に `getSession()` でセッションを水和するため async。`.raw` で素のクライアント（auth など）にアクセスできる。
 - **`$supabaseClient`** — ブラウザ用。mutation の既定経路では **ない**。Realtime 購読などブラウザ直叩きが必要なときだけの opt-in。
 
 `lib/supabase/index.ts` はエンジン API だけを re-export し、クライアント実体は出さない（環境を跨いだ誤 import を防ぐため、`./server` `./client` から直接 import する）。

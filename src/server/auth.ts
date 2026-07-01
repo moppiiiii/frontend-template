@@ -15,7 +15,7 @@ import { CredentialsSchema } from "@/schemas/auth";
  */
 export const getUser = createServerFn().handler(
   async (): Promise<User | null> => {
-    const $supabase = $supabaseServer();
+    const $supabase = await $supabaseServer();
     const {
       data: { user },
     } = await $supabase.raw.auth.getUser();
@@ -32,7 +32,7 @@ export const userQueryOptions = () =>
 export const signIn = createServerFn({ method: "POST" })
   .validator(CredentialsSchema)
   .handler(async ({ data }): Promise<User> => {
-    const $supabase = $supabaseServer();
+    const $supabase = await $supabaseServer();
     const { data: result, error } = await $supabase.raw.auth.signInWithPassword(
       {
         email: data.email,
@@ -44,7 +44,7 @@ export const signIn = createServerFn({ method: "POST" })
   });
 
 export const signOut = createServerFn({ method: "POST" }).handler(async () => {
-  const $supabase = $supabaseServer();
+  const $supabase = await $supabaseServer();
   const { error } = await $supabase.raw.auth.signOut();
   if (error) throw error;
 });
