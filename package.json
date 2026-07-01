@@ -16,7 +16,8 @@
     "lint": "oxlint src",
     "typecheck": "tsgo --noEmit",
     "check": "tsgo --noEmit && oxlint src && oxfmt --check src",
-    "deploy": "bun run build && wrangler deploy"
+    "deploy": "bun run build && wrangler deploy",
+    "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.26.0",
