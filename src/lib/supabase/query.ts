@@ -54,10 +54,11 @@ export type InsertEntry<I = unknown> = {
   readonly input: z.ZodType<I>;
 };
 
-/** UPDATE: 更新データの検証スキーマ `input`。 */
-export type UpdateEntry<I = unknown> = {
+/** UPDATE: 更新データの検証スキーマ `input`。`row` を渡すと `match` が `Partial<Row>` に。 */
+export type UpdateEntry<I = unknown, R = unknown> = {
   readonly _op: "update";
   readonly input: z.ZodType<I>;
+  readonly row?: z.ZodType<R>;
 };
 
 /** UPSERT: 挿入/更新データの検証スキーマ `input`。 */
@@ -66,9 +67,10 @@ export type UpsertEntry<I = unknown> = {
   readonly input: z.ZodType<I>;
 };
 
-/** DELETE。 */
-export type DeleteEntry = {
+/** DELETE。`row` を渡すと `match` が `Partial<Row>` に型付けされる。 */
+export type DeleteEntry<R = unknown> = {
   readonly _op: "delete";
+  readonly row?: z.ZodType<R>;
 };
 
 /** 各エントリ生成ヘルパー（`_op` を付与するだけ）。 */
@@ -89,9 +91,9 @@ export const insert = <I>(
   ...entry,
 });
 
-export const update = <I>(
-  entry: Omit<UpdateEntry<I>, "_op">,
-): UpdateEntry<I> => ({
+export const update = <I, R = unknown>(
+  entry: Omit<UpdateEntry<I, R>, "_op">,
+): UpdateEntry<I, R> => ({
   _op: "update",
   ...entry,
 });
@@ -103,7 +105,9 @@ export const upsert = <I>(
   ...entry,
 });
 
-export const deleteFrom = (): DeleteEntry => ({ _op: "delete" });
+export const deleteFrom = <R = unknown>(
+  entry?: Omit<DeleteEntry<R>, "_op">,
+): DeleteEntry<R> => ({ _op: "delete", ...entry });
 
 // ─── スキーママップ型 ─────────────────────────────────────────────────────────
 
@@ -137,6 +141,11 @@ type SelectBuilderType = ReturnType<QueryBuilderType["select"]>;
 
 /** 出力型 `O`（通常 `Row[]`）から 1 行分の型 `Row` を取り出す。 */
 type RowOf<O> = O extends ReadonlyArray<infer R> ? R : O;
+
+/** update/delete の `match` の型。`row` 有りなら `Partial<Row>`、無しは `Record<string, unknown>`。 */
+type MatchOf<R> = unknown extends R
+  ? Record<string, unknown>
+  : Partial<RowOf<R>>;
 
 /**
  * カラム名を行型 `Row` のキーに制約した、postgrest フィルタの安全なサブセット。
@@ -210,15 +219,17 @@ type OptionsFor<K extends string, S extends SupabaseSchemaMap> =
         ? { data: z.input<z.ZodType<I>> | Array<z.input<z.ZodType<I>>> }
         : never
       : GetOp<K> extends "update"
-        ? S[K & keyof S] extends UpdateEntry<infer I>
-          ? { data: z.input<z.ZodType<I>>; match: Record<string, unknown> }
+        ? S[K & keyof S] extends UpdateEntry<infer I, infer R>
+          ? { data: z.input<z.ZodType<I>>; match: MatchOf<R> }
           : never
         : GetOp<K> extends "upsert"
           ? S[K & keyof S] extends UpsertEntry<infer I>
             ? { data: z.input<z.ZodType<I>> | Array<z.input<z.ZodType<I>>> }
             : never
           : GetOp<K> extends "delete"
-            ? { match: Record<string, unknown> }
+            ? S[K & keyof S] extends DeleteEntry<infer R>
+              ? { match: MatchOf<R> }
+              : never
             : never;
 
 type SupabaseQueryFn<S extends SupabaseSchemaMap> = <

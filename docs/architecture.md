@@ -72,4 +72,28 @@ route loader
 
 **mutation の実体はサーバー（serverFn）**だが、即時の UI 反映は「キャッシュ操作」の責務として `onMutate` で行う。これにより検証・認可をサーバーに集約しつつ楽観更新も両立する。
 
+## 認証ガード（保護ルート）
+
+保護したいルートは pathless レイアウトルート `_authed`（先頭 `_` = URL に出ない）の下にまとめる。ガードは `beforeLoad` に 1 度だけ書き、配下ルートが継承する。保護ページを増やすときは `routes/_authed/` にファイルを置くだけでよい。
+
+```
+routes/_authed/route.tsx      # beforeLoad で user を確定 → 未ログインは /login へ redirect
+routes/_authed/dashboard.tsx  # 配下（URL: /dashboard）。context.user は非 null が保証される
+routes/login.tsx              # 未ログイン用。ログイン済みなら遷移先へ redirect
+```
+
+`_authed` という名前は任意（`_protected` 等でも可）。意味を持つのは先頭の `_`（pathless）だけ。保護ページが 1 枚だけなら、そのルートに直接 `beforeLoad` を書いてもよい（レイアウト不要）。
+
+```ts
+// routes/_authed/route.tsx
+beforeLoad: async ({ context, location }) => {
+  const user = await context.queryClient.ensureQueryData(userQueryOptions());
+  if (!user) throw redirect({ to: "/login", search: { redirect: location.href } });
+  return { user }; // 配下ルートの context にマージされる
+},
+```
+
+- **user の取得は `userQueryOptions()`（= `getUser` serverFn）経由**。`ensureQueryData` なので SSR・遷移で二重に叩かず、`use-sign-*` フックのキャッシュ更新と一貫する。
+- **行レベルの認可は Supabase RLS が正**。serverFn 側で所有者チェックを書かないのは、RLS（＋ Cookie セッション）を単一の防衛線に寄せているため。ガードは「未ログインを弾く」までを担う。
+
 詳しいクエリ層の仕組みは [data-access.md](./data-access.md) を参照。

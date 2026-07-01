@@ -43,22 +43,28 @@ export const TodoResponseSchema = TodoEntitySchema.pick({
 
 export type Todo = z.infer<typeof TodoResponseSchema>;
 
+// serverFn の入力契約。zod は schemas/ に集約し、.validator と操作 input で共有する。
+export const AddTodoInput = z.object({ title: z.string().min(1) });
+export const UpdateTodoInput = z.object({
+  title: z.string().min(1).optional(),
+  completed: z.boolean().optional(),
+});
+// id は match、completed は update data に振り分ける。
+export const ToggleTodoInput = z.object({
+  id: z.string().uuid(),
+  completed: z.boolean(),
+});
+export const RemoveTodoInput = z.object({ id: z.string().uuid() });
+
 // 操作の単一定義。サーバー / ブラウザ双方がこれを共有する。
 export const todosSchema = createSupabaseSchema({
   "@select/todos": select({
     output: z.array(TodoResponseSchema),
     select: GET_TODOS_QUERY,
-    // filter は実テーブルの全カラムで型付け（例: q.eq("category_id", id) も効く）。
+    // filter/match は実テーブルの全カラムで型付け（例: q.eq("category_id", id)）。
     row: TodoEntitySchema,
   }),
-  "@insert/todos": insert({
-    input: z.object({ title: z.string().min(1) }),
-  }),
-  "@update/todos": update({
-    input: z.object({
-      title: z.string().min(1).optional(),
-      completed: z.boolean().optional(),
-    }),
-  }),
-  "@delete/todos": deleteFrom(),
+  "@insert/todos": insert({ input: AddTodoInput }),
+  "@update/todos": update({ input: UpdateTodoInput, row: TodoEntitySchema }),
+  "@delete/todos": deleteFrom({ row: TodoEntitySchema }),
 });

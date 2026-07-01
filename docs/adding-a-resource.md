@@ -40,15 +40,24 @@ export const PostResponseSchema = PostEntitySchema.pick({
 
 export type Post = z.infer<typeof PostResponseSchema>;
 
+// API リクエスト（serverFn の入力契約）は名前付きで置き、操作 input と
+// serverFn の `.validator()` の両方から共有する（src/server/ に zod を書かない）。
+export const AddPostInput = z.object({ title: z.string().min(1), body: z.string() });
+export const UpdatePostInput = z.object({ title: z.string().min(1).optional() });
+export const RemovePostInput = z.object({ id: z.string().uuid() });
+
 export const postsSchema = createSupabaseSchema({
   "@select/posts": select({
     output: z.array(PostResponseSchema),
     select: GET_POSTS_QUERY,
     row: PostEntitySchema,
   }),
-  "@insert/posts": insert({ input: z.object({ title: z.string().min(1), body: z.string() }) }),
-  "@update/posts": update({ input: z.object({ title: z.string().min(1).optional() }) }),
-  "@delete/posts": deleteFrom(),
+  "@insert/posts": insert({ input: AddPostInput }),
+  "@update/posts": update({
+    input: UpdatePostInput,
+    row: PostEntitySchema, // match を Partial<Row> で型付け（カラム名・値のタイポを弾く）
+  }),
+  "@delete/posts": deleteFrom({ row: PostEntitySchema }),
 });
 ```
 
@@ -69,9 +78,8 @@ export const appSchema = {
 ```ts
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
-import * as z from "zod";
 import { $supabaseServer } from "@/lib/supabase/server";
-import type { Post } from "@/schemas/posts";
+import { AddPostInput, type Post } from "@/schemas/posts";
 
 export const getPosts = createServerFn().handler(async (): Promise<Post[]> => {
   const $supabase = $supabaseServer();
@@ -85,8 +93,9 @@ export const getPosts = createServerFn().handler(async (): Promise<Post[]> => {
 export const postsQueryOptions = () =>
   queryOptions({ queryKey: ["posts"], queryFn: () => getPosts() });
 
+// .validator は schemas/ の名前付きスキーマを参照するだけ（zod をここで定義しない）。
 export const addPost = createServerFn({ method: "POST" })
-  .validator(z.object({ title: z.string().min(1), body: z.string() }))
+  .validator(AddPostInput)
   .handler(async ({ data }) => {
     const $supabase = $supabaseServer();
     await $supabase.raw.auth.getSession();
@@ -96,6 +105,7 @@ export const addPost = createServerFn({ method: "POST" })
 ```
 
 > mutation はすべて `method: "POST"`（serverFn は GET/POST のみ。delete も POST）。
+> serverFn の `.validator()` に渡す zod は `schemas/` に名前付きで置き、ここでは import して参照するだけにする（`src/server/` に zod を定義しない）。
 
 ## 4.（必要なら）楽観的更新フック — `src/hooks/use-add-post.ts`
 

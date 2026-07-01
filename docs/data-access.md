@@ -96,6 +96,20 @@ export const GET_TODOS_QUERY =
 - **読み取り**（関連データの表示）: 上記で型付きのまま通る。
 - **絞り込み**: `select({ row: TodoEntitySchema })` を渡すことで、レスポンスに含めない外部キー（`category_id`）でも filter が型付けされる。
 
+## 書き込みの `match`（update / delete）
+
+`update`/`deleteFrom` に `row`（実テーブルの全カラム）を渡すと、`match` が `Partial<Row>` で型付けされる。カラム名のタイポや値の型違いはコンパイルエラーになる。
+
+```ts
+"@update/todos": update({ input, row: TodoEntitySchema }),
+"@delete/todos": deleteFrom({ row: TodoEntitySchema }),
+
+$supabase("@update/todos", { data: { completed: true }, match: { id } });
+//                                                       match: { idd: id }  ❌ コンパイルエラー
+```
+
+`row` 省略時は `match: Record<string, unknown>`（型なし）にフォールバックする。新規リソースでは `row` を渡すのを既定にする。
+
 ## サーバー / ブラウザ クライアント
 
 - **`$supabaseServer()`** — serverFn 内で使う既定経路。cookie をリクエストごとに読むためファクトリ（毎回呼ぶ）。`.raw` で素のクライアント（auth など）にアクセスできる。

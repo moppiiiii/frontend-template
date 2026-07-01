@@ -1,9 +1,13 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
-import * as z from "zod";
 
 import { $supabaseServer } from "@/lib/supabase/server";
-import type { Todo } from "@/schemas/todos";
+import {
+  AddTodoInput,
+  RemoveTodoInput,
+  ToggleTodoInput,
+  type Todo,
+} from "@/schemas/todos";
 
 // 1 リソースの fetch / mutation（どちらも serverFn）を 1 ファイルにまとめる。
 
@@ -23,7 +27,7 @@ export const todosQueryOptions = () =>
   });
 
 export const addTodo = createServerFn({ method: "POST" })
-  .validator(z.object({ title: z.string().min(1) }))
+  .validator(AddTodoInput)
   .handler(async ({ data }) => {
     const $supabase = $supabaseServer();
     await $supabase.raw.auth.getSession();
@@ -34,7 +38,7 @@ export const addTodo = createServerFn({ method: "POST" })
   });
 
 export const toggleTodo = createServerFn({ method: "POST" })
-  .validator(z.object({ id: z.string().uuid(), completed: z.boolean() }))
+  .validator(ToggleTodoInput)
   .handler(async ({ data }) => {
     const $supabase = $supabaseServer();
     await $supabase.raw.auth.getSession();
@@ -46,7 +50,7 @@ export const toggleTodo = createServerFn({ method: "POST" })
   });
 
 export const removeTodo = createServerFn({ method: "POST" })
-  .validator(z.object({ id: z.string().uuid() }))
+  .validator(RemoveTodoInput)
   .handler(async ({ data }) => {
     const $supabase = $supabaseServer();
     await $supabase.raw.auth.getSession();
