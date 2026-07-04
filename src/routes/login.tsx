@@ -15,7 +15,7 @@ export const Route = createFileRoute("/login")({
     // すでにログイン済みなら遷移先へ飛ばす（ログイン画面を見せない）。
     const user = await context.queryClient.ensureQueryData(userQueryOptions());
     if (user) {
-      throw redirect({ href: search.redirect ?? "/" });
+      throw redirect({ to: search.redirect ?? "/" });
     }
   },
   component: LoginPage,
