@@ -20,6 +20,7 @@ src/
       client.ts           # $supabaseClient（ブラウザ・Realtime 等の直叩き用 opt-in）
       server.ts           # $supabaseServer（cookie 対応のファクトリ）
       index.ts            # エンジン公開 API の barrel
+    errors.ts             # serverFn 境界のエラー処理（詳細はログへ、クライアントへは安全な文言）
     utils.ts              # cn など純粋ヘルパー
   integrations/           # tanstack-query provider など、フレームワーク配線
   env.ts                  # t3-env による環境変数（型＋実行時バリデーション）

@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { unwrapForClient } from "@/lib/errors";
 import { $supabaseServer } from "@/lib/supabase/server";
 import {
   AddTodoInput,
@@ -32,7 +33,7 @@ export const addTodo = createServerFn({ method: "POST" })
     const result = await $supabase("@insert/todos", {
       data: { title: data.title },
     });
-    if (result.isErr()) throw result.error;
+    unwrapForClient(result, "Todo を追加できませんでした。");
   });
 
 export const toggleTodo = createServerFn({ method: "POST" })
@@ -43,7 +44,7 @@ export const toggleTodo = createServerFn({ method: "POST" })
       data: { completed: data.completed },
       match: { id: data.id },
     });
-    if (result.isErr()) throw result.error;
+    unwrapForClient(result, "Todo を更新できませんでした。");
   });
 
 export const removeTodo = createServerFn({ method: "POST" })
@@ -51,5 +52,5 @@ export const removeTodo = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const $supabase = await $supabaseServer();
     const result = await $supabase("@delete/todos", { match: { id: data.id } });
-    if (result.isErr()) throw result.error;
+    unwrapForClient(result, "Todo を削除できませんでした。");
   });

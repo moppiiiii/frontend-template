@@ -173,6 +173,20 @@ describe("createSupabaseClient", () => {
       expect(find(calls, "update")?.args[0]).toEqual({ completed: true });
       expect(find(calls, "match")?.args[0]).toEqual({ id: UUID });
     });
+
+    it("空の match は全行更新になるため拒否し、client.update を呼ばない", async () => {
+      const { client, calls } = createMockClient({ data: null, error: null });
+      const $q = createSupabaseClient({ client, schema: todosSchema });
+
+      const result = await $q("@update/todos", {
+        data: { completed: true },
+        match: {},
+      });
+
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(SupabaseQueryError);
+      expect(has(calls, "update")).toBe(false);
+    });
   });
 
   describe("delete", () => {
@@ -185,6 +199,17 @@ describe("createSupabaseClient", () => {
       expect(result.isOk()).toBe(true);
       expect(has(calls, "delete")).toBe(true);
       expect(find(calls, "match")?.args[0]).toEqual({ id: UUID });
+    });
+
+    it("空の match は全行削除になるため拒否し、client.delete を呼ばない", async () => {
+      const { client, calls } = createMockClient({ data: null, error: null });
+      const $q = createSupabaseClient({ client, schema: todosSchema });
+
+      const result = await $q("@delete/todos", { match: {} });
+
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(SupabaseQueryError);
+      expect(has(calls, "delete")).toBe(false);
     });
   });
 

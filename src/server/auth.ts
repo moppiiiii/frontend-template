@@ -2,6 +2,7 @@ import type { User } from "@supabase/supabase-js";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { toClientError } from "@/lib/errors";
 import { $supabaseServer } from "@/lib/supabase/server";
 import { CredentialsSchema } from "@/schemas/auth";
 
@@ -39,12 +40,17 @@ export const signIn = createServerFn({ method: "POST" })
         password: data.password,
       },
     );
-    if (error) throw error;
+    if (error) {
+      throw toClientError(
+        "ログインできませんでした。メールアドレスとパスワードを確認してください。",
+        error,
+      );
+    }
     return result.user;
   });
 
 export const signOut = createServerFn({ method: "POST" }).handler(async () => {
   const $supabase = await $supabaseServer();
   const { error } = await $supabase.raw.auth.signOut();
-  if (error) throw error;
+  if (error) throw toClientError("ログアウトできませんでした。", error);
 });

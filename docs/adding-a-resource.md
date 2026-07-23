@@ -78,6 +78,7 @@ export const appSchema = {
 ```ts
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
+import { unwrapForClient } from "@/lib/errors";
 import { $supabaseServer } from "@/lib/supabase/server";
 import { AddPostInput, type Post } from "@/schemas/posts";
 
@@ -98,12 +99,13 @@ export const addPost = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const $supabase = await $supabaseServer();
     const result = await $supabase("@insert/posts", { data });
-    if (result.isErr()) throw result.error;
+    unwrapForClient(result, "Post を追加できませんでした。");
   });
 ```
 
 > mutation はすべて `method: "POST"`（serverFn は GET/POST のみ。delete も POST）。
 > serverFn の `.validator()` に渡す zod は `schemas/` に名前付きで置き、ここでは import して参照するだけにする（`src/server/` に zod を定義しない）。
+> 失敗した `Result` は `throw result.error` せず `unwrapForClient`（`@/lib/errors`）で処理する。データ層のエラーにはテーブル名等の内部情報が含まれるため、詳細はサーバーログへ、クライアントへはユーザー向け文言だけを投げる。
 
 ## 4.（必要なら）楽観的更新フック — `src/hooks/use-add-post.ts`
 

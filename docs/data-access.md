@@ -110,6 +110,8 @@ $supabase("@update/todos", { data: { completed: true }, match: { id } });
 
 `row` 省略時は `match: Record<string, unknown>`（型なし）にフォールバックする。新規リソースでは `row` を渡すのを既定にする。
 
+空の `match`（`{}`）は WHERE 句なしの全行 update / delete になってしまうため、エンジンが実行前に拒否して `SupabaseQueryError` を返す。
+
 ## サーバー / ブラウザ クライアント
 
 - **`$supabaseServer()`** — serverFn 内で使う既定経路。cookie をリクエストごとに読むためファクトリ（毎回 `await` する）。生成時に `getSession()` でセッションを水和するため async。`.raw` で素のクライアント（auth など）にアクセスできる。

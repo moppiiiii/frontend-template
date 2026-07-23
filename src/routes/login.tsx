@@ -5,8 +5,15 @@ import { LoginForm } from "@/components/auth/login-form";
 import { userQueryOptions } from "@/server/auth";
 
 // ガードから渡ってくる遷移先。未指定なら / （Todos ホーム）。
+// オープンリダイレクト対策: アプリ内パス（"/" 始まり）だけを許可する。
+// "//evil.com"（プロトコル相対）や "/\evil.com"（ブラウザが \ を / に正規化）は
+// 外部へ飛べてしまうため弾き、不正値は未指定扱いに落とす。
 const SearchSchema = z.object({
-  redirect: z.string().optional().catch(undefined),
+  redirect: z
+    .string()
+    .regex(/^\/(?![/\\])/)
+    .optional()
+    .catch(undefined),
 });
 
 export const Route = createFileRoute("/login")({

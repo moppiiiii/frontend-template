@@ -336,12 +336,21 @@ async function executeInsert(
   return ok(undefined);
 }
 
+/** 空の `match` は WHERE 句なしで全行に作用してしまうため、実行前に拒否する。 */
+const emptyMatchError = (op: "update" | "delete", table: string) =>
+  new SupabaseQueryError(
+    `Refusing to ${op} "${table}" with an empty match (would affect all rows)`,
+  );
+
 async function executeUpdate(
   client: SupabaseClient,
   table: string,
   entry: UpdateEntry,
   opts: { data: unknown; match: Record<string, unknown> },
 ): Promise<Result<void, SupabaseError>> {
+  if (Object.keys(opts.match).length === 0) {
+    return err(emptyMatchError("update", table));
+  }
   const parsed = entry.input.safeParse(opts.data);
   if (!parsed.success) {
     return err(new SupabaseValidationError(parsed.error));
@@ -383,6 +392,9 @@ async function executeDelete(
   table: string,
   opts: { match: Record<string, unknown> },
 ): Promise<Result<void, SupabaseError>> {
+  if (Object.keys(opts.match).length === 0) {
+    return err(emptyMatchError("delete", table));
+  }
   const { error } = await client.from(table).delete().match(opts.match);
   if (error) {
     return err(
