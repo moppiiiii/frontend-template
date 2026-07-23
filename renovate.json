@@ -1,0 +1,51 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":prHourlyLimit2",
+    ":prConcurrentLimit10"
+  ],
+  "timezone": "Asia/Tokyo",
+  "schedule": ["before 9am on monday"],
+  "labels": ["dependencies"],
+  "rangeStrategy": "bump",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 9am on monday"]
+  },
+  "packageRules": [
+    {
+      "description": "Group all TanStack packages together",
+      "matchSourceUrls": ["https://github.com/TanStack/{/,}**"],
+      "groupName": "TanStack packages"
+    },
+    {
+      "description": "Group all Radix UI packages together",
+      "matchPackageNames": ["radix-ui", "/^@radix-ui//"],
+      "groupName": "Radix UI"
+    },
+    {
+      "description": "Group all type definition packages together",
+      "matchPackageNames": ["/^@types//"],
+      "groupName": "type definitions"
+    },
+    {
+      "description": "Group oxc lint/format tooling together",
+      "matchPackageNames": ["oxlint", "oxfmt"],
+      "groupName": "oxc tooling"
+    },
+    {
+      "description": "Automerge non-zero-major minor and patch updates",
+      "matchUpdateTypes": ["minor", "patch"],
+      "matchCurrentVersion": "!/^0/",
+      "automerge": true
+    },
+    {
+      "description": "Raise major updates as separate PRs for careful review",
+      "matchUpdateTypes": ["major"],
+      "labels": ["dependencies", "major"]
+    }
+  ]
+}
