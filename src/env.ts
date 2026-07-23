@@ -2,6 +2,14 @@ import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
 
 export const env = createEnv({
+  /**
+   * サーバー専用変数の注意（Cloudflare Workers）:
+   * `runtimeEnv` が `import.meta.env` のため、実行時に参照できるのはビルド時に
+   * インライン化される `VITE_` 接頭辞のクライアント変数だけ。ここに足した
+   * サーバー専用変数は Workers ランタイムでは黙って undefined になる。
+   * シークレット（例: Supabase の secret key）を扱うときは wrangler の
+   * binding / secret から取得する構成に変えること（.dev.vars ＋ `wrangler secret`）。
+   */
   server: {
     SERVER_URL: z.string().url().optional(),
   },

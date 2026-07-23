@@ -28,6 +28,9 @@ export const userQueryOptions = () =>
   queryOptions({
     queryKey: ["auth", "user"],
     queryFn: () => getUser(),
+    // ガード（_authed / login）が revalidateIfStale で再検証する間隔の上限。
+    // グローバル既定に依存させず、認証はここで明示する。
+    staleTime: 30_000,
   });
 
 export const signIn = createServerFn({ method: "POST" })

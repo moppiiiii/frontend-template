@@ -116,7 +116,10 @@ routes/login.tsx              # 未ログイン用。ログイン済みなら遷
 ```ts
 // routes/_authed/route.tsx
 beforeLoad: async ({ context, location }) => {
-  const user = await context.queryClient.ensureQueryData(userQueryOptions());
+  const user = await context.queryClient.ensureQueryData({
+    ...userQueryOptions(),
+    revalidateIfStale: true, // stale なら裏で再検証（セッション失効を放置しない）
+  });
   if (!user) throw redirect({ to: "/login", search: { redirect: location.href } });
   return { user }; // 配下ルートの context にマージされる
 },

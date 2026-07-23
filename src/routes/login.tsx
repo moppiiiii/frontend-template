@@ -20,7 +20,10 @@ export const Route = createFileRoute("/login")({
   validateSearch: SearchSchema,
   beforeLoad: async ({ context, search }) => {
     // すでにログイン済みなら遷移先へ飛ばす（ログイン画面を見せない）。
-    const user = await context.queryClient.ensureQueryData(userQueryOptions());
+    const user = await context.queryClient.ensureQueryData({
+      ...userQueryOptions(),
+      revalidateIfStale: true,
+    });
     if (user) {
       throw redirect({ to: search.redirect ?? "/" });
     }
