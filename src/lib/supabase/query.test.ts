@@ -1,15 +1,69 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, expectTypeOf, it } from "vitest";
-
-import { GET_TODOS_QUERY, type Todo, todosSchema } from "@/schemas/todos";
+import * as z from "zod";
 
 import {
   createSupabaseClient,
+  createSupabaseSchema,
+  deleteFrom,
+  insert,
+  select,
   SupabaseQueryError,
   SupabaseValidationError,
+  update,
 } from "./query";
 
 const UUID = "00000000-0000-0000-0000-000000000000";
+
+// エンジン単体のテスト用スキーマ。アプリのリソース（appSchema）には依存させず、
+// 検証したい機能（embed・transform・row 由来の filter/match 型付け）をここで再現する。
+const CategorySchema = z.object({ id: z.uuid(), name: z.string() });
+
+const ItemEntitySchema = z.object({
+  id: z.uuid(),
+  title: z.string(),
+  completed: z.boolean(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  category_id: z.uuid().nullable(),
+});
+
+const GET_ITEMS_QUERY =
+  "id, title, completed, created_at, category:categories(id, name)";
+
+const ItemResponseSchema = ItemEntitySchema.pick({
+  id: true,
+  title: true,
+  completed: true,
+  created_at: true,
+})
+  .extend({ category: CategorySchema.nullable() })
+  .transform((row) => ({
+    id: row.id,
+    title: row.title,
+    completed: row.completed,
+    createdAt: row.created_at,
+    category: row.category,
+  }));
+
+type Item = z.infer<typeof ItemResponseSchema>;
+
+const itemsSchema = createSupabaseSchema({
+  "@select/items": select({
+    output: z.array(ItemResponseSchema),
+    select: GET_ITEMS_QUERY,
+    row: ItemEntitySchema,
+  }),
+  "@insert/items": insert({ input: z.object({ title: z.string().min(1) }) }),
+  "@update/items": update({
+    input: z.object({
+      title: z.string().min(1).optional(),
+      completed: z.boolean().optional(),
+    }),
+    row: ItemEntitySchema,
+  }),
+  "@delete/items": deleteFrom({ row: ItemEntitySchema }),
+});
 
 type QueryResult = { data: unknown; error: unknown };
 type Call = { method: string; args: unknown[] };
@@ -81,9 +135,9 @@ describe("createSupabaseClient", () => {
         ],
         error: null,
       });
-      const $q = createSupabaseClient({ client, schema: todosSchema });
+      const $q = createSupabaseClient({ client, schema: itemsSchema });
 
-      const result = await $q("@select/todos", {
+      const result = await $q("@select/items", {
         filter: (q) => q.order("created_at", { ascending: false }),
       });
 
@@ -97,8 +151,8 @@ describe("createSupabaseClient", () => {
           category: null,
         },
       ]);
-      expect(find(calls, "from")?.args[0]).toBe("todos");
-      expect(find(calls, "select")?.args[0]).toBe(GET_TODOS_QUERY);
+      expect(find(calls, "from")?.args[0]).toBe("items");
+      expect(find(calls, "select")?.args[0]).toBe(GET_ITEMS_QUERY);
       expect(has(calls, "order")).toBe(true);
     });
 
@@ -108,9 +162,9 @@ describe("createSupabaseClient", () => {
         data: [{ id: UUID, completed: false, created_at: "x", category: null }],
         error: null,
       });
-      const $q = createSupabaseClient({ client, schema: todosSchema });
+      const $q = createSupabaseClient({ client, schema: itemsSchema });
 
-      const result = await $q("@select/todos", {});
+      const result = await $q("@select/items", {});
 
       expect(result.isErr()).toBe(true);
       expect(result._unsafeUnwrapErr()).toBeInstanceOf(SupabaseValidationError);
@@ -125,9 +179,9 @@ describe("createSupabaseClient", () => {
           details: "d",
         },
       });
-      const $q = createSupabaseClient({ client, schema: todosSchema });
+      const $q = createSupabaseClient({ client, schema: itemsSchema });
 
-      const result = await $q("@select/todos", {});
+      const result = await $q("@select/items", {});
 
       const error = result._unsafeUnwrapErr();
       expect(error).toBeInstanceOf(SupabaseQueryError);
@@ -139,9 +193,9 @@ describe("createSupabaseClient", () => {
   describe("insert", () => {
     it("入力が不正なら検証で弾き、client.insert を呼ばない", async () => {
       const { client, calls } = createMockClient({ data: null, error: null });
-      const $q = createSupabaseClient({ client, schema: todosSchema });
+      const $q = createSupabaseClient({ client, schema: itemsSchema });
 
-      const result = await $q("@insert/todos", { data: { title: "" } });
+      const result = await $q("@insert/items", { data: { title: "" } });
 
       expect(result.isErr()).toBe(true);
       expect(result._unsafeUnwrapErr()).toBeInstanceOf(SupabaseValidationError);
@@ -150,9 +204,9 @@ describe("createSupabaseClient", () => {
 
     it("単一データを配列に包んで挿入する", async () => {
       const { client, calls } = createMockClient({ data: null, error: null });
-      const $q = createSupabaseClient({ client, schema: todosSchema });
+      const $q = createSupabaseClient({ client, schema: itemsSchema });
 
-      const result = await $q("@insert/todos", { data: { title: "hi" } });
+      const result = await $q("@insert/items", { data: { title: "hi" } });
 
       expect(result.isOk()).toBe(true);
       expect(find(calls, "insert")?.args[0]).toEqual([{ title: "hi" }]);
@@ -162,9 +216,9 @@ describe("createSupabaseClient", () => {
   describe("update", () => {
     it("検証済みデータと match を渡す", async () => {
       const { client, calls } = createMockClient({ data: null, error: null });
-      const $q = createSupabaseClient({ client, schema: todosSchema });
+      const $q = createSupabaseClient({ client, schema: itemsSchema });
 
-      const result = await $q("@update/todos", {
+      const result = await $q("@update/items", {
         data: { completed: true },
         match: { id: UUID },
       });
@@ -176,9 +230,9 @@ describe("createSupabaseClient", () => {
 
     it("空の match は全行更新になるため拒否し、client.update を呼ばない", async () => {
       const { client, calls } = createMockClient({ data: null, error: null });
-      const $q = createSupabaseClient({ client, schema: todosSchema });
+      const $q = createSupabaseClient({ client, schema: itemsSchema });
 
-      const result = await $q("@update/todos", {
+      const result = await $q("@update/items", {
         data: { completed: true },
         match: {},
       });
@@ -192,9 +246,9 @@ describe("createSupabaseClient", () => {
   describe("delete", () => {
     it("match で対象を絞って削除する", async () => {
       const { client, calls } = createMockClient({ data: null, error: null });
-      const $q = createSupabaseClient({ client, schema: todosSchema });
+      const $q = createSupabaseClient({ client, schema: itemsSchema });
 
-      const result = await $q("@delete/todos", { match: { id: UUID } });
+      const result = await $q("@delete/items", { match: { id: UUID } });
 
       expect(result.isOk()).toBe(true);
       expect(has(calls, "delete")).toBe(true);
@@ -203,9 +257,9 @@ describe("createSupabaseClient", () => {
 
     it("空の match は全行削除になるため拒否し、client.delete を呼ばない", async () => {
       const { client, calls } = createMockClient({ data: null, error: null });
-      const $q = createSupabaseClient({ client, schema: todosSchema });
+      const $q = createSupabaseClient({ client, schema: itemsSchema });
 
-      const result = await $q("@delete/todos", { match: {} });
+      const result = await $q("@delete/items", { match: {} });
 
       expect(result.isErr()).toBe(true);
       expect(result._unsafeUnwrapErr()).toBeInstanceOf(SupabaseQueryError);
@@ -216,35 +270,35 @@ describe("createSupabaseClient", () => {
   // 型契約のリグレッションテスト。expectTypeOf / @ts-expect-error は
   // `bun run check`（tsgo）で検証される（実行時は何も検査しない）。
   describe("型契約（コンパイル時）", () => {
-    it("select の戻り値は変換後スキーマ（Todo[]）で型付けされる", async () => {
+    it("select の戻り値は変換後スキーマ（Item[]）で型付けされる", async () => {
       const { client } = createMockClient({ data: [], error: null });
-      const $q = createSupabaseClient({ client, schema: todosSchema });
+      const $q = createSupabaseClient({ client, schema: itemsSchema });
 
-      const result = await $q("@select/todos", {});
+      const result = await $q("@select/items", {});
 
-      expectTypeOf(result._unsafeUnwrap()).toEqualTypeOf<Todo[]>();
+      expectTypeOf(result._unsafeUnwrap()).toEqualTypeOf<Item[]>();
     });
 
     it("filter のカラム名・値、match のキーが実テーブルの Row に制約される", async () => {
       const { client } = createMockClient({ data: [], error: null });
-      const $q = createSupabaseClient({ client, schema: todosSchema });
+      const $q = createSupabaseClient({ client, schema: itemsSchema });
 
       // レスポンスに含まれない外部キー（category_id）でも row 由来で filter できる。
-      await $q("@select/todos", {
+      await $q("@select/items", {
         filter: (q) => q.eq("category_id", UUID),
       });
 
-      await $q("@select/todos", {
+      await $q("@select/items", {
         // @ts-expect-error 存在しないカラム名はコンパイルエラー
         filter: (q) => q.eq("nope", 1),
       });
 
-      await $q("@select/todos", {
+      await $q("@select/items", {
         // @ts-expect-error 値の型違い（completed は boolean）はコンパイルエラー
         filter: (q) => q.eq("completed", "yes"),
       });
 
-      await $q("@update/todos", {
+      await $q("@update/items", {
         data: { completed: true },
         // @ts-expect-error match のキーも実テーブルのカラムに制約される
         match: { idd: UUID },
@@ -254,7 +308,7 @@ describe("createSupabaseClient", () => {
 
   it("未登録のキーは SupabaseQueryError を返す", async () => {
     const { client } = createMockClient({ data: null, error: null });
-    const $q = createSupabaseClient({ client, schema: todosSchema });
+    const $q = createSupabaseClient({ client, schema: itemsSchema });
 
     // 型上は存在しないキー。実行時フォールバックを見るため cast して呼ぶ。
     const result = await (

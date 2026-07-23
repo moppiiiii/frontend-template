@@ -9,8 +9,8 @@ description: このテンプレートに新しい Supabase 由来のデータア
 
 ## まず読む（正本）
 
-手順とコード雛形の**正本は `docs/adding-a-resource.md`**。設計思想の背景は `docs/data-access.md`。
-実装前に必ずこの2つを参照し、既存の `src/schemas/todos.ts` / `src/server/todos.ts` / `src/hooks/use-toggle-todo.ts` を雛形にする。
+手順とコード雛形の**正本は `docs/adding-a-resource.md`**（架空リソース `posts` の完全なコード例）。設計思想の背景は `docs/data-access.md`。実装前に必ずこの2つを参照する。
+todo サンプル（`src/schemas/todos.ts` / `src/server/todos.ts` / `src/hooks/use-toggle-todo.ts`）が残っていれば動く実例として参考にできるが、削除済みでも docs だけで完結する。
 
 ## 守るべき規約（要点）
 

@@ -10,7 +10,7 @@ TanStack Start のファイルベースルーティング規約と、このテ�
 ## まず読む（正本）
 
 - 配置規約とデータフローの正本は **`docs/architecture.md`**（「どこに何を置くか」「routes は薄く」「データフロー」「認証ガード」）。
-- 既存の `src/routes/_authed/index.tsx`（loader + `useSuspenseQuery` 購読）と `src/routes/__root.tsx` を雛形にする。認証ガードは `src/routes/_authed/route.tsx` を雛形にする。
+- コード雛形の正本は本 skill 内のコード例（下記）。実ファイルでは `src/routes/__root.tsx` と認証ガード `src/routes/_authed/route.tsx`（常に存在する）を参照する。todo サンプルが残っていれば `src/routes/_authed/index.tsx`（loader + `useSuspenseQuery` 購読）も実例になる。
 - データ層が絡むなら先に `add-supabase-resource` を回し、route はその `queryOptions` を呼ぶだけにする。
 
 ## 守るべき規約（要点）

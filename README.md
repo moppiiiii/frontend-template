@@ -122,7 +122,7 @@ component   → useSuspenseQuery(<resource>QueryOptions())  で同じキャッ�
 | --- | --- |
 | `add-supabase-resource` | 新しい Supabase テーブル／リソースの CRUD を追加（schema → appSchema → serverFn → 楽観フック → route） |
 | `add-route` | 画面ルートを追加（薄い route ＋ loader ＋ `useSuspenseQuery`、search バリデーション、認証ガード） |
-| `add-form` | 入力フォームを追加（検証は serverFn の `.validator(zod)`、送信は楽観フック経由） |
+| `strip-sample` | 同梱の todo サンプル（`@sample-todos` マーカー付き）を削除し、新規プロジェクト用の素の状態にする |
 
 ---
 

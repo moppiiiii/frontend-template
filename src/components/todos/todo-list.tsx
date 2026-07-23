@@ -1,3 +1,4 @@
+// @sample-todos: todo サンプルの一部。strip-sample skill で削除される。
 import type { Todo } from "@/schemas/todos";
 
 import { TodoItem } from "./todo-item";

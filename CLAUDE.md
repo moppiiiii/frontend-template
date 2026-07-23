@@ -15,6 +15,10 @@ TanStack Start + Supabase のフロントエンドテンプレート。
 
 新しい Supabase テーブル/リソースの CRUD を足すときは `add-supabase-resource` skill に従う。
 
+## サンプル削除
+
+同梱の todo サンプル（`@sample-todos` マーカー付きファイル）は削除してよい実装例。新規プロジェクト開始時に取り除くときは `strip-sample` skill に従う。
+
 ## スタイリング規約
 
 - スタイルは Tailwind ユーティリティを各コンポーネントの `className` に直接書く（結合は `cn()`、バリアントは cva）。

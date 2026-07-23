@@ -1,3 +1,4 @@
+// @sample-todos: todo サンプルの一部。strip-sample skill で削除される。
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useRemoveTodo } from "@/hooks/use-remove-todo";

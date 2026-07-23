@@ -1,3 +1,4 @@
+// @sample-todos: todo サンプルの一部。strip-sample skill で削除される。
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 

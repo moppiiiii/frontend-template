@@ -1,3 +1,4 @@
+// @sample-todos: todo サンプルの一部。strip-sample skill で削除される。
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type { Todo } from "@/schemas/todos";

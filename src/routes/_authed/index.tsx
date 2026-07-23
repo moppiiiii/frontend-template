@@ -1,3 +1,4 @@
+// @sample-todos(replace): 中身は todo サンプル。strip-sample skill がプレースホルダーへ置き換える。
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 

@@ -1,6 +1,6 @@
 # リソースの追加手順
 
-新しいテーブル（例: `posts`）を足すときの流れ。`todos` がそのまま雛形になる。
+新しいテーブル（例: `posts`）を足すときの流れ。以下のコード例がそのまま雛形になる（todo サンプルが残っていれば動く実例としても参照できる）。
 
 ## 1. スキーマを定義する — `src/schemas/posts.ts`
 
@@ -109,9 +109,9 @@ export const addPost = createServerFn({ method: "POST" })
 
 ## 4.（必要なら）楽観的更新フック — `src/hooks/use-add-post.ts`
 
-`use-toggle-todo.ts` を雛形に、`onMutate` でキャッシュを即時更新 → `onError` で巻き戻し → `onSettled` で `invalidateQueries`。クエリキーは `postsQueryOptions().queryKey` から取得してドリフトを防ぐ。
+`onMutate` でキャッシュを即時更新 → `onError` で巻き戻し → `onSettled` で `invalidateQueries` の三段構え。クエリキーは `postsQueryOptions().queryKey` から取得してドリフトを防ぐ（todo サンプルが残っていれば `use-toggle-todo.ts` が実例）。
 
-この楽観フローの回帰は `src/hooks/use-toggle-todo.test.tsx` が押さえている（serverFn をモックして「即時反映 → 失敗で巻き戻し」を検証）。新しいフックにも同型のテストを添えると安全。
+楽観フローには「serverFn をモックして即時反映 → 失敗で巻き戻し」を検証する回帰テストを添えると安全（`src/hooks/use-sign-in.test.tsx` がモックの切り離し方の実例）。
 
 **作成/編集フォームを足すとき**は `@tanstack/react-form`（`useForm` ＋ `form.Field`）で書き、検証は `schemas/` の zod（例: `AddPostInput`）を `validators` に渡して共有する。素の `useState` で値を持たない。フォーム本体は `components/<resource>/` に置き、route は薄く保つ。詳細と雛形は [architecture.md](./architecture.md#フォーム)（`src/components/auth/login-form.tsx`）を参照。
 
@@ -130,7 +130,7 @@ function PostsPage() {
 ```
 
 > ログイン必須のリソースなら route は `src/routes/_authed/posts.tsx`（URL: `/posts`）に置く。
-> `_authed/route.tsx` のガードを継承するので、route 側にガードは書かない（[architecture.md](./architecture.md#認証ガード保護ルート) 参照）。todos ホームも `src/routes/_authed/index.tsx` にある。
+> `_authed/route.tsx` のガードを継承するので、route 側にガードは書かない（[architecture.md](./architecture.md#認証ガード保護ルート) 参照）。
 
 ## チェックリスト
 

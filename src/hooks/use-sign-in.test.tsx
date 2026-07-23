@@ -4,8 +4,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// serverFn をモックし、「成功時に user キャッシュへ反映される」契約だけを検証する
-//（use-toggle-todo.test.tsx と同じ切り離し方）。
+// serverFn をモックし、「成功時に user キャッシュへ反映される」契約だけを検証する。
 const signIn = vi.fn();
 const queryFn = vi.fn();
 vi.mock("@/server/auth", () => ({
