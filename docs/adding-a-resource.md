@@ -2,6 +2,32 @@
 
 新しいテーブル（例: `posts`）を足すときの流れ。以下のコード例がそのまま雛形になる（todo サンプルが残っていれば動く実例としても参照できる）。
 
+## 0. migration を書く — `supabase/migrations/<timestamp>_create_posts.sql`
+
+テーブル定義と RLS ポリシーの正本。適用は `supabase db push`（またはダッシュボードの SQL エディタ）。
+
+```sql
+create table public.posts (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  body text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade
+);
+
+create index posts_user_id_idx on public.posts (user_id);
+
+alter table public.posts enable row level security;
+
+create policy "owner can select posts"
+  on public.posts for select to authenticated
+  using ((select auth.uid()) = user_id);
+-- insert（with check）/ update / delete も同型で書く。
+```
+
+> **RLS が唯一の防衛線**（serverFn で所有者チェックを書かない）ため、`enable row level security` とポリシーは必ずセットで書く。有効化を忘れると全行が公開され、ポリシーなしで有効化だけすると全操作が拒否される。所有者カラムは `default auth.uid()` にしておくと、insert 時にアプリ側から渡す必要がなくなる。
+
 ## 1. スキーマを定義する — `src/schemas/posts.ts`
 
 ```ts
@@ -16,13 +42,14 @@ import {
 
 export const GET_POSTS_QUERY = "id, title, body, created_at";
 
-// 全カラム（filter のカラム型はこれ由来）
+// 全カラム（filter のカラム型はこれ由来）。user_id は DB 側 default auth.uid() が入れる。
 export const PostEntitySchema = z.object({
   id: z.string().uuid(),
   title: z.string(),
   body: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
+  user_id: z.string().uuid(),
 });
 
 // レスポンス（pick → 必要なら transform で camelCase）
@@ -134,6 +161,7 @@ function PostsPage() {
 
 ## チェックリスト
 
+- [ ] `supabase/migrations/`（DDL ＋ RLS ポリシー。適用まで）
 - [ ] `schemas/<resource>.ts`（Entity → Response、操作断片）
 - [ ] `schemas/index.ts` の `appSchema` に合流
 - [ ] `server/<resource>.ts`（serverFn ＋ queryOptions）

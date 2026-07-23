@@ -25,6 +25,8 @@ src/
   integrations/           # tanstack-query provider など、フレームワーク配線
   env.ts                  # t3-env による環境変数（型＋実行時バリデーション）
   router.tsx
+supabase/
+  migrations/             # テーブル定義・RLS ポリシーの正本（SQL）
 ```
 
 ## 「どこに何を置くか」の規約
@@ -38,6 +40,7 @@ src/
 | 楽観的更新などのクライアントロジック | `hooks/use-*.ts` |
 | エラー / 404 / pending の境界 UI | `components/boundaries/` |
 | 横断的な純粋ヘルパー | `lib/` |
+| テーブル定義・RLS ポリシー | `supabase/migrations/*.sql` |
 
 原則:
 
@@ -136,5 +139,6 @@ beforeLoad: async ({ context, location }) => {
 
 - **user の取得は `userQueryOptions()`（= `getUser` serverFn）経由**。`ensureQueryData` なので SSR・遷移で二重に叩かず、`use-sign-*` フックのキャッシュ更新と一貫する。
 - **行レベルの認可は Supabase RLS が正**。serverFn 側で所有者チェックを書かないのは、RLS（＋ Cookie セッション）を単一の防衛線に寄せているため。ガードは「未ログインを弾く」までを担う。
+- **RLS ポリシーとテーブル定義の正本は `supabase/migrations/` の SQL**。テーブルを足すときは必ず `enable row level security` とポリシーをセットで書く（RLS を有効にし忘れると全行が公開される）。ポリシー内の `auth.uid()` は Supabase 方言のため、別バックエンドへ移行する場合はこの防衛線を serverFn 層の認可へ移す。
 
 詳しいクエリ層の仕組みは [data-access.md](./data-access.md) を参照。

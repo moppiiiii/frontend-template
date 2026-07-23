@@ -41,6 +41,15 @@ bun install
 cp .env.example .env
 ```
 
+DB を準備する。テーブル定義・RLS ポリシーの正本は `supabase/migrations/` の SQL:
+
+```bash
+supabase link --project-ref <your-project>   # 初回のみ
+supabase db push
+```
+
+（Supabase CLI を使わない場合はダッシュボードの SQL エディタで migration の内容を実行する）
+
 開発サーバーを起動（http://localhost:3000）:
 
 ```bash
@@ -86,6 +95,8 @@ src/
   env.ts                  # 型安全な環境変数（t3-env）
   router.tsx              # ルーター生成・SSR Query 統合
   routeTree.gen.ts        # 自動生成（手で触らない）
+supabase/
+  migrations/             # テーブル定義・RLS ポリシーの正本（SQL）
 ```
 
 **import エイリアスは `@/`**（`@/*` → `./src/*`）。環境変数は必ず `@/env` 経由で、`import.meta.env.X` を直接使わない。

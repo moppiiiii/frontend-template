@@ -12,7 +12,7 @@ description: このテンプレートから todo サンプル一式を取り除�
 サンプルは全ファイルに `@sample-todos` マーカーが付いている。まず列挙して現状を確認する:
 
 ```bash
-grep -rn "@sample-todos" src
+grep -rn "@sample-todos" src supabase
 ```
 
 マーカーは 3 種類:
@@ -33,6 +33,7 @@ grep の結果がこの手順書の想定と食い違う場合（マーカーが
    - `src/hooks/use-toggle-todo.ts`
    - `src/hooks/use-toggle-todo.test.tsx`
    - `src/components/todos/`（ディレクトリごと）
+   - `supabase/migrations/20260724000000_create_todos.sql`（`supabase/migrations/` ディレクトリ自体は `.gitkeep` ごと残す）
 
 2. **`src/schemas/index.ts` を空の appSchema に戻す**（`@sample-todos(edit)` の行を除去）:
 
@@ -72,7 +73,7 @@ grep の結果がこの手順書の想定と食い違う場合（マーカーが
    bun run format            # oxfmt（置き換えたファイルの整形ずれを吸収）
    bun run check             # tsgo ＋ oxlint ＋ oxfmt --check
    bun run test              # 残るテスト（engine / auth）が通ること
-   grep -rn "@sample-todos" src   # 出力ゼロであること
+   grep -rn "@sample-todos" src supabase   # 出力ゼロであること
    ```
 
    `grep -rn "todos" src` に残ってよいのは docs 類の説明文中の例示のみ。src 配下にコード参照が残っていたら消し漏れ。
@@ -84,4 +85,5 @@ grep の結果がこの手順書の想定と食い違う場合（マーカーが
 ## 注意
 
 - `docs/` と `README.md` の本文には todos を**例として**言及する箇所が残るが、実ファイルに依存しない書き方になっているため修正不要。
+- サンプル migration を適用済みの Supabase 環境がある場合、DB 側の todos / categories テーブルは自動では消えない。必要なら drop する migration の作成をユーザーに提案する。
 - 削除はワーキングツリー上で行い、コミットはユーザーに確認してから。

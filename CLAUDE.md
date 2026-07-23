@@ -13,7 +13,7 @@ TanStack Start + Supabase のフロントエンドテンプレート。
 
 ## リソース追加
 
-新しい Supabase テーブル/リソースの CRUD を足すときは `add-supabase-resource` skill に従う。
+新しい Supabase テーブル/リソースの CRUD を足すときは `add-supabase-resource` skill に従う。テーブル定義・RLS ポリシーの正本は `supabase/migrations/` の SQL（リソース追加時は migration も書く）。
 
 ## サンプル削除
 

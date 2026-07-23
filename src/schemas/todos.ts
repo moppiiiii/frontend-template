@@ -13,6 +13,7 @@ import {
 const CategorySchema = z.object({ id: z.uuid(), name: z.string() });
 
 // テーブルの全カラム。filter のカラム型はこれ由来になる。
+// DDL の正本は supabase/migrations/。user_id は DB 側 default auth.uid() が入れる。
 export const TodoEntitySchema = z.object({
   id: z.uuid(),
   title: z.string(),
@@ -20,6 +21,7 @@ export const TodoEntitySchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   category_id: z.uuid().nullable(),
+  user_id: z.uuid(),
 });
 
 // embed 込みの取得カラム。`category:categories(...)` で関連を一緒に取る。

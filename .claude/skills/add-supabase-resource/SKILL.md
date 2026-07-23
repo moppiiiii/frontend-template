@@ -14,6 +14,9 @@ todo サンプル（`src/schemas/todos.ts` / `src/server/todos.ts` / `src/hooks/
 
 ## 守るべき規約（要点）
 
+0. **DDL ＋ RLS ポリシーは `supabase/migrations/` に migration として書く**（正本）。
+   - RLS が唯一の防衛線（serverFn で所有者チェックを書かない）。`enable row level security` とポリシーは必ずセット。
+   - 所有者カラムは `user_id uuid not null default auth.uid()` を既定にする。SQL 例は `docs/adding-a-resource.md` の手順 0。
 1. **スキーマは `src/schemas/<resource>.ts`** に 1 ファイル。
    - 全カラムの `<Name>EntitySchema` を定義 → レスポンスは `.pick()`（必要なら `.extend()` で embed、`.transform()` で camelCase）で派生。
    - `select({ output, select: GET_<NAME>_QUERY, row: <Name>EntitySchema })`。`row` を渡すと filter のカラム型が実テーブル全カラムになる。
@@ -43,4 +46,4 @@ bun run check          # tsgo（型）＋ oxlint ＋ oxfmt --check
 bun run format         # oxfmt（整形を書き込む）
 ```
 
-DB 側のテーブル/カラム/FK が前提条件になる場合は、想定 DDL をスキーマ冒頭のコメントに残すか、ユーザーに確認する。
+migration の適用（`supabase db push` 等）はユーザーの環境操作になるため、ファイルを書いたら適用方法を案内し、勝手に実行しない。
