@@ -10,3 +10,15 @@ export const CredentialsSchema = z.object({
 });
 
 export type Credentials = z.infer<typeof CredentialsSchema>;
+
+// /login の search（ガードから渡ってくる遷移先）。未指定なら / へ。
+// オープンリダイレクト対策: アプリ内パス（"/" 始まり）だけを許可する。
+// "//evil.com"（プロトコル相対）や "/\evil.com"（ブラウザが \ を / に正規化）は
+// 外部へ飛べてしまうため弾き、不正値は未指定扱いに落とす。
+export const LoginSearchSchema = z.object({
+  redirect: z
+    .string()
+    .regex(/^\/(?![/\\])/)
+    .optional()
+    .catch(undefined),
+});

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { GET_TODOS_QUERY, todosSchema } from "@/schemas/todos";
+import { GET_TODOS_QUERY, type Todo, todosSchema } from "@/schemas/todos";
 
 import {
   createSupabaseClient,
@@ -210,6 +210,45 @@ describe("createSupabaseClient", () => {
       expect(result.isErr()).toBe(true);
       expect(result._unsafeUnwrapErr()).toBeInstanceOf(SupabaseQueryError);
       expect(has(calls, "delete")).toBe(false);
+    });
+  });
+
+  // 型契約のリグレッションテスト。expectTypeOf / @ts-expect-error は
+  // `bun run check`（tsgo）で検証される（実行時は何も検査しない）。
+  describe("型契約（コンパイル時）", () => {
+    it("select の戻り値は変換後スキーマ（Todo[]）で型付けされる", async () => {
+      const { client } = createMockClient({ data: [], error: null });
+      const $q = createSupabaseClient({ client, schema: todosSchema });
+
+      const result = await $q("@select/todos", {});
+
+      expectTypeOf(result._unsafeUnwrap()).toEqualTypeOf<Todo[]>();
+    });
+
+    it("filter のカラム名・値、match のキーが実テーブルの Row に制約される", async () => {
+      const { client } = createMockClient({ data: [], error: null });
+      const $q = createSupabaseClient({ client, schema: todosSchema });
+
+      // レスポンスに含まれない外部キー（category_id）でも row 由来で filter できる。
+      await $q("@select/todos", {
+        filter: (q) => q.eq("category_id", UUID),
+      });
+
+      await $q("@select/todos", {
+        // @ts-expect-error 存在しないカラム名はコンパイルエラー
+        filter: (q) => q.eq("nope", 1),
+      });
+
+      await $q("@select/todos", {
+        // @ts-expect-error 値の型違い（completed は boolean）はコンパイルエラー
+        filter: (q) => q.eq("completed", "yes"),
+      });
+
+      await $q("@update/todos", {
+        data: { completed: true },
+        // @ts-expect-error match のキーも実テーブルのカラムに制約される
+        match: { idd: UUID },
+      });
     });
   });
 

@@ -9,16 +9,16 @@ import {
 } from "@/lib/supabase/query";
 
 // 想定: todos.category_id → categories.id（FK）。embed で categories を一緒に取る。
-const CategorySchema = z.object({ id: z.string().uuid(), name: z.string() });
+const CategorySchema = z.object({ id: z.uuid(), name: z.string() });
 
 // テーブルの全カラム。filter のカラム型はこれ由来になる。
 export const TodoEntitySchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   title: z.string(),
   completed: z.boolean(),
   created_at: z.string(),
   updated_at: z.string(),
-  category_id: z.string().uuid().nullable(),
+  category_id: z.uuid().nullable(),
 });
 
 // embed 込みの取得カラム。`category:categories(...)` で関連を一緒に取る。
@@ -51,10 +51,10 @@ export const UpdateTodoInput = z.object({
 });
 // id は match、completed は update data に振り分ける。
 export const ToggleTodoInput = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   completed: z.boolean(),
 });
-export const RemoveTodoInput = z.object({ id: z.string().uuid() });
+export const RemoveTodoInput = z.object({ id: z.uuid() });
 
 // 操作の単一定義。サーバー / ブラウザ双方がこれを共有する。
 export const todosSchema = createSupabaseSchema({
