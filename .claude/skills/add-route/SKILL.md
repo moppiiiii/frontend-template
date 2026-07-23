@@ -53,6 +53,8 @@ TanStack Start のファイルベースルーティング規約と、このテ�
 
 5. **import は `@/` エイリアス**（`@/server/...` `@/components/...`）。環境変数は必ず `@/env` 経由（`import.meta.env.X` を直接使わない）。
 
+6. **スタイルは Tailwind ユーティリティを `className` に直接書く**。`src/styles.css` にはトークン・グローバル以外を追加しない（コンポーネント固有クラスの定義は禁止。`docs/architecture.md` の「スタイリング」参照）。
+
 ## search params（クエリ文字列）
 
 型安全に扱う場合は zod でバリデーションし、loader / コンポーネントから型付きで読む。

@@ -55,6 +55,15 @@ src/
 
 雛形は `src/components/auth/login-form.tsx`（`useSignIn` に委譲、`CredentialsSchema` でフィールド検証）。route（`src/routes/login.tsx`）は薄く保ち、search を読んでこのフォームへ渡すだけにする。
 
+## スタイリング
+
+**Tailwind ユーティリティを各コンポーネントの `className` に直接書く**のが唯一のスタイリング手段。CSS ファイルにコンポーネント用クラスを定義しない。
+
+- **`src/styles.css` はトークンとグローバルのみ**。置いてよいのは、デザイントークン（`:root` / `.dark` の CSS 変数、`@theme`）、要素セレクタのグローバルスタイル（`body`, `a`, `code` など）、`@layer base`。`.foo-card` のようなクラス定義を追加した時点で規約違反。
+- **見た目の繰り返しはクラス抽出ではなくコンポーネント抽出で解決する**。同じ組み合わせを 3 回書きたくなったら `components/ui/`（バリアントは cva）か `components/<feature>/` に部品化する。
+- **色・角丸などはトークン経由**（`bg-background`, `text-muted-foreground`, `rounded-lg` …）。任意値（`bg-[#123456]`）やコンポーネント内のハードコード色は避け、必要なら styles.css のトークンに追加してから使う。
+- クラス結合・条件分岐は `lib/utils.ts` の `cn()` を使う。
+
 ## エラー / 404 / pending 境界
 
 例外・未一致 URL・ローダー待ちのフォールバックは **`router.tsx` の `default*Component` で 1 度だけ定義**し、全ルートが継承する（認証ガードと同じ「define once」方針）。個別ルートで `errorComponent` 等を渡せば上書きできる。

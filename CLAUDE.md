@@ -15,6 +15,12 @@ TanStack Start + Supabase のフロントエンドテンプレート。
 
 新しい Supabase テーブル/リソースの CRUD を足すときは `add-supabase-resource` skill に従う。
 
+## スタイリング規約
+
+- スタイルは Tailwind ユーティリティを各コンポーネントの `className` に直接書く（結合は `cn()`、バリアントは cva）。
+- `src/styles.css` はデザイントークン・要素セレクタのグローバル・`@layer base` のみ。**コンポーネント固有のクラス（`.foo-card` 等）を styles.css に追加しない**。
+- 見た目の繰り返しは CSS クラス抽出ではなく `components/ui/` へのコンポーネント抽出で解決する。詳細は `docs/architecture.md` の「スタイリング」。
+
 ## コメント規約
 
 - コメントは最小限。書くなら 1〜2 行で端的に。長い解説・箇条書きコメントは書かない。
