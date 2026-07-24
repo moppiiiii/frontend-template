@@ -4,6 +4,8 @@
 
 型安全な Supabase アクセス層・楽観的更新・SSR 対応のデータフローをあらかじめ組み込み、リソース／画面／フォームの追加を**規約化**してある。設計の正本は [`docs/`](./docs/README.md)、定型作業は Claude Code の [skill](#claude-code-skill) に従う。
 
+> **はじめて使う人へ**: 強み・セットアップ手順・ハマりどころを 1 枚にまとめた [docs/getting-started.md](./docs/getting-started.md) から読むのがおすすめ。
+
 ---
 
 ## 技術スタック

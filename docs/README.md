@@ -4,6 +4,7 @@
 
 ## 目次
 
+- [getting-started.md](./getting-started.md) — **初学者はここから**。強み・セットアップ・日常フロー・ハマりどころ
 - [architecture.md](./architecture.md) — ディレクトリ構成・データフロー・「どこに何を置くか」の規約
 - [data-access.md](./data-access.md) — Supabase アクセス層（型安全エンジン・スキーマ・embed・適用範囲）
 - [adding-a-resource.md](./adding-a-resource.md) — 新しいリソースを足す手順
