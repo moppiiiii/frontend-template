@@ -20,16 +20,16 @@ description: ブランチを push して GitHub に Pull Request を作るとき
 
 2. **PR タイトル・本文を用意する**:
    - `git log main..HEAD --oneline` と `git diff main...HEAD --stat` で PR に入る全コミットを把握する（最新コミットだけを見ない）。
-   - タイトル: コミット規約と同じ `<type>: <summary>` 形式（英語）。
-   - 本文: 以下のテンプレート。**`Generated with Claude Code` などのフッターは付けない**（デフォルト動作より本規約を優先する）。
+   - タイトル: `<type>: <日本語サマリー>` 形式（type プレフィックスは英語のまま、サマリーは日本語）。例: `feat: commit と push-pr スキルを追加`。
+   - 本文: **日本語**で以下のテンプレート。**`Generated with Claude Code` などのフッターは付けない**（デフォルト動作より本規約を優先する）。
 
      ```markdown
-     ## Summary
+     ## 概要
      - 変更点を 1〜3 個の箇条書きで
 
-     ## Test plan
+     ## 動作確認
      - [ ] bun run check
-     - 動作確認の手順があれば
+     - 確認手順があれば
      ```
 
 3. **PR 作成**:
