@@ -28,6 +28,8 @@ export const todosSchema = createSupabaseSchema({
 });
 ```
 
+`upsert({ input })` も同型で定義できる。mutation 系の戻り値は既定 `void`（`returning` で結果行を返せる。「書き込みの返却」参照）。行数だけが要るときは `count({ row })`（「ページネーション」参照）。
+
 呼び出しはキーで行い、キーはコンパイル時に検証される。
 
 ```ts
@@ -36,7 +38,7 @@ const result = await $supabase("@select/todos", { filter: (q) => q.order("create
 //                              ^^^^^^^^^^^^^^ タイポはコンパイルエラー
 ```
 
-戻り値は常に `Result<T, SupabaseError>`（neverthrow）。`result.unwrapOr([])` / `result.isErr()` / `result.match(...)` で扱う。
+戻り値は常に `Result<T, SupabaseError>`（neverthrow）。serverFn 境界では fetch / mutation とも `unwrapForClient`（`@/lib/errors`）で unwrap し、失敗はユーザー向け文言に変換して throw する。`unwrapOr` で既定値に落とすとデータ層の失敗が正常表示（空一覧など）に化けてエラー境界に届かなくなるため、既定の経路では使わない。
 
 ## エンティティ / レスポンス パターン
 
@@ -96,6 +98,34 @@ export const GET_TODOS_QUERY =
 - **読み取り**（関連データの表示）: 上記で型付きのまま通る。
 - **絞り込み**: `select({ row: TodoEntitySchema })` を渡すことで、レスポンスに含めない外部キー（`category_id`）でも filter が型付けされる。
 
+> **既知の二重定義**: 取得クエリ文字列（`GET_..._QUERY`）とレスポンススキーマはカラムを二重に持つが、`createSupabaseSchema` が定義時にトップレベルのカラム/エイリアスの一致を検証するため、ずれると起動・テストで即エラーになる。検証されるのはトップレベルのみで、embed の内側のカラム（`categories(id, name)` の中身）は対象外。そこだけは手動で同期する。
+
+## ページネーション
+
+`limit` / `range` を filter で使う。`range` は 0 始まりの閉区間。
+
+```ts
+const PAGE_SIZE = 20;
+$supabase("@select/posts", {
+  filter: (q) =>
+    q.order("created_at", { ascending: false })
+     .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1),
+});
+```
+
+`page` は route の search params で受け、`loaderDeps` 経由で `queryOptions` のキーに含めてページ単位でキャッシュする（route 側の書き方は `add-route` skill を参照）。
+
+総件数（ページ数の計算など）は count 操作で取る。
+
+```ts
+"@count/posts": count({ row: PostEntitySchema }), // filter を使うなら row を渡す
+
+const total = await $supabase("@count/posts", {
+  filter: (q) => q.eq("user_id", userId),
+});
+// Result<number>。head: true なので行は転送しない
+```
+
 ## 書き込みの `match`（update / delete）
 
 `update`/`deleteFrom` に `row`（実テーブルの全カラム）を渡すと、`match` が `Partial<Row>` で型付けされる。カラム名のタイポや値の型違いはコンパイルエラーになる。
@@ -112,6 +142,24 @@ $supabase("@update/todos", { data: { completed: true }, match: { id } });
 
 空の `match`（`{}`）は WHERE 句なしの全行 update / delete になってしまうため、エンジンが実行前に拒否して `SupabaseQueryError` を返す。
 
+## 書き込みの返却（returning）
+
+mutation の戻り値は既定 `void`。挿入/更新された行が必要なとき（例: 採番された id で詳細へ遷移、楽観 temp-id の置換）は、操作定義に `returning` を渡す。戻り値は select と同じく Zod 検証・変換を通った配列になる。
+
+```ts
+"@insert/todos": insert({
+  input: AddTodoInput,
+  returning: { output: z.array(TodoResponseSchema), select: GET_TODOS_QUERY },
+}),
+
+const result = await $supabase("@insert/todos", { data: { title } });
+// Result<Todo[], SupabaseError>（returning なしなら Result<void, ...>）
+```
+
+- `select` 省略時は `"*"`。embed 込みで返すときは取得クエリ定数を共有する。
+- `returning.select` も定義時にスキーマとの一致が検証される（select と同じ）。
+- RLS 環境では返却行にも select ポリシーが効く。insert はできても select が許可されていないと行が返らない点に注意。
+
 ## サーバー / ブラウザ クライアント
 
 - **`$supabaseServer()`** — serverFn 内で使う既定経路。cookie をリクエストごとに読むためファクトリ（毎回 `await` する）。生成時に `getSession()` でセッションを水和するため async。`.raw` で素のクライアント（auth など）にアクセスできる。
@@ -119,14 +167,10 @@ $supabase("@update/todos", { data: { completed: true }, match: { id } });
 
 `lib/supabase/index.ts` はエンジン API だけを re-export し、クライアント実体は出さない（環境を跨いだ誤 import を防ぐため、`./server` `./client` から直接 import する）。
 
-## 適用範囲と限界
+## 対応しないこと（referencedTable）
 
-| やりたいこと | 対応 |
-|---|---|
-| 単一テーブルの CRUD | ✅ |
-| 関連データを一緒に表示（embed 読み取り） | ✅ 型付き |
-| 自テーブル＋外部キーでの絞り込み | ✅ 型付き（`row`） |
-| 関連テーブルの**列**での型付き filter/order（`referencedTable`） | ⚠️ 未対応 → `$supabaseServer().raw` に退避 |
-| insert/update の結果行を返す（`RETURNING`） | ⚠️ 未対応（mutation は `void`）。楽観 temp-id ＋再取得で回避 |
+関連テーブルの**列**での型付き filter/order（postgrest の `referencedTable`。例: `order("name", { referencedTable: "categories" })` や `eq("categories.name", ...)`）は、**意図的に非対応**とする。
 
-関連クエリが主役級になるアプリでは、この層を拡張するか、Supabase 公式の型生成（`supabase gen types`）併用ラインを別途検討する。
+- **理由**: embed の型情報をエンジンへ持ち込むと `TypedFilterBuilder` 全メソッドの型が複雑化し、可読性のコストが利得を上回るため。実行時には dotted カラム指定はそのまま動く（無いのは型の保証だけ）。
+- **必要になったら** `$supabaseServer().raw` で素のクライアントに退避する。
+- 関連クエリが主役級になるアプリでは、この判断ごと見直して層を拡張するか、Supabase 公式の型生成（`supabase gen types`）併用を検討する。

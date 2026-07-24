@@ -67,7 +67,11 @@ export const todosSchema = createSupabaseSchema({
     // filter/match は実テーブルの全カラムで型付け（例: q.eq("category_id", id)）。
     row: TodoEntitySchema,
   }),
-  "@insert/todos": insert({ input: AddTodoInput }),
+  "@insert/todos": insert({
+    input: AddTodoInput,
+    // 挿入行を embed 込みで返す（採番 id で楽観 temp-id を置換するため）。
+    returning: { output: z.array(TodoResponseSchema), select: GET_TODOS_QUERY },
+  }),
   "@update/todos": update({ input: UpdateTodoInput, row: TodoEntitySchema }),
   "@delete/todos": deleteFrom({ row: TodoEntitySchema }),
 });

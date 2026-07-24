@@ -25,3 +25,13 @@ jobs:
 
       - name: Check (tsgo + oxlint + oxfmt)
         run: bun run check
+
+      - name: Test (vitest)
+        run: bun run test
+
+      - name: Build (vite)
+        run: bun run build
+        env:
+          # ビルド検証用のダミー値（env.ts の実行時バリデーションを通すため）
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: dummy

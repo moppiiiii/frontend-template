@@ -95,7 +95,11 @@ import { userQueryOptions } from "@/server/auth";
 
 export const Route = createFileRoute("/_authed")({
   beforeLoad: async ({ context, location }) => {
-    const user = await context.queryClient.ensureQueryData(userQueryOptions());
+    // キャッシュがあれば即返しつつ、stale なら裏で再検証（セッション失効を放置しない）。
+    const user = await context.queryClient.ensureQueryData({
+      ...userQueryOptions(),
+      revalidateIfStale: true,
+    });
     if (!user) {
       throw redirect({ to: "/login", search: { redirect: location.href } });
     }

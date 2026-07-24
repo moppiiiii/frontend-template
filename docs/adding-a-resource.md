@@ -44,12 +44,12 @@ export const GET_POSTS_QUERY = "id, title, body, created_at";
 
 // 全カラム（filter のカラム型はこれ由来）。user_id は DB 側 default auth.uid() が入れる。
 export const PostEntitySchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   title: z.string(),
   body: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
-  user_id: z.string().uuid(),
+  user_id: z.uuid(),
 });
 
 // レスポンス（pick → 必要なら transform で camelCase）
@@ -71,7 +71,7 @@ export type Post = z.infer<typeof PostResponseSchema>;
 // serverFn の `.validator()` の両方から共有する（src/server/ に zod を書かない）。
 export const AddPostInput = z.object({ title: z.string().min(1), body: z.string() });
 export const UpdatePostInput = z.object({ title: z.string().min(1).optional() });
-export const RemovePostInput = z.object({ id: z.string().uuid() });
+export const RemovePostInput = z.object({ id: z.uuid() });
 
 export const postsSchema = createSupabaseSchema({
   "@select/posts": select({
@@ -114,7 +114,8 @@ export const getPosts = createServerFn().handler(async (): Promise<Post[]> => {
   const result = await $supabase("@select/posts", {
     filter: (q) => q.order("created_at", { ascending: false }),
   });
-  return result.unwrapOr([]);
+  // fetch も unwrapForClient で境界処理する（unwrapOr で握りつぶすと障害が「空一覧」に化ける）。
+  return unwrapForClient(result, "Post を取得できませんでした。");
 });
 
 export const postsQueryOptions = () =>
@@ -137,6 +138,8 @@ export const addPost = createServerFn({ method: "POST" })
 ## 4.（必要なら）楽観的更新フック — `src/hooks/use-add-post.ts`
 
 `onMutate` でキャッシュを即時更新 → `onError` で巻き戻し → `onSettled` で `invalidateQueries` の三段構え。クエリキーは `postsQueryOptions().queryKey` から取得してドリフトを防ぐ（todo サンプルが残っていれば `use-toggle-todo.ts` が実例）。
+
+`onSettled` の invalidate は `queryClient.isMutating() === 1` のときだけ行う。並行 mutation 中に無条件で invalidate すると、先に終わった refetch が後続の楽観値を上書きして表示が一瞬巻き戻る。
 
 楽観フローには「serverFn をモックして即時反映 → 失敗で巻き戻し」を検証する回帰テストを添えると安全（`src/hooks/use-sign-in.test.tsx` がモックの切り離し方の実例）。
 

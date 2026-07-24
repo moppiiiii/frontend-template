@@ -2,7 +2,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { unwrapForClient } from "@/lib/errors";
+import { toClientError, unwrapForClient } from "@/lib/errors";
 import { $supabaseServer } from "@/lib/supabase/server";
 import {
   AddTodoInput,
@@ -18,7 +18,8 @@ export const getTodos = createServerFn().handler(async (): Promise<Todo[]> => {
   const result = await $supabase("@select/todos", {
     filter: (q) => q.order("created_at", { ascending: false }),
   });
-  return result.unwrapOr([]);
+  // unwrapOr で既定値に落とさない（障害が「空一覧」に化け、エラー境界に届かなくなる）。
+  return unwrapForClient(result, "Todo を取得できませんでした。");
 });
 
 export const todosQueryOptions = () =>
@@ -29,12 +30,19 @@ export const todosQueryOptions = () =>
 
 export const addTodo = createServerFn({ method: "POST" })
   .validator(AddTodoInput)
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<Todo> => {
     const $supabase = await $supabaseServer();
     const result = await $supabase("@insert/todos", {
       data: { title: data.title },
     });
-    unwrapForClient(result, "Todo を追加できませんでした。");
+    const [todo] = unwrapForClient(result, "Todo を追加できませんでした。");
+    if (!todo) {
+      throw toClientError(
+        "Todo を追加できませんでした。",
+        "insert returned no rows",
+      );
+    }
+    return todo;
   });
 
 export const toggleTodo = createServerFn({ method: "POST" })

@@ -4,7 +4,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Todo } from "@/schemas/todos";
 import { addTodo, todosQueryOptions } from "@/server/todos";
 
-// 楽観的更新（insert）。id はサーバー採番なので一時 id を振り、onSettled の再取得で置換する。
+// 楽観的更新（insert）。id はサーバー採番なので一時 id を振り、
+// onSuccess で returning の行（実 id）と置換する。
 export function useAddTodo() {
   const queryClient = useQueryClient();
   const { queryKey } = todosQueryOptions();
@@ -25,7 +26,12 @@ export function useAddTodo() {
         optimistic,
         ...(old ?? []),
       ]);
-      return { previous };
+      return { previous, optimisticId: optimistic.id };
+    },
+    onSuccess: (created, _vars, context) => {
+      queryClient.setQueryData<Todo[]>(queryKey, (old) =>
+        old?.map((t) => (t.id === context.optimisticId ? created : t)),
+      );
     },
     onError: (_err, _vars, context) => {
       if (context?.previous) {
@@ -33,7 +39,10 @@ export function useAddTodo() {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey });
+      // 並行 mutation 中の invalidate は楽観値を上書きするため、最後の 1 件だけ再同期する。
+      if (queryClient.isMutating() === 1) {
+        queryClient.invalidateQueries({ queryKey });
+      }
     },
   });
 }

@@ -15,7 +15,7 @@
 具体的には次の 4 つを徹底しています。
 
 1. **1 スキーマが 3 役を兼ねる**
-   リソースの zod スキーマ 1 つから、①実行時バリデーション ②戻り値の型 ③filter のカラム型 がすべて派生する。定義は 1 箇所、二重定義は構造的に禁止。
+   リソースの zod スキーマ 1 つから、①実行時バリデーション ②戻り値の型 ③filter のカラム型 がすべて派生する。定義は 1 箇所に集約する（既知の例外が 1 つ: 取得クエリ文字列は手書きだが、定義時にスキーマとの一致が自動検証される。[data-access.md](./data-access.md#joinembed) 参照）。
 
 2. **端から端まで型で閉じる**
    操作キー（`@select/todos`）・filter のカラム名と値・戻り値、すべてコンパイル時に検証される。
@@ -28,5 +28,5 @@
 
 ## 適用範囲（重要）
 
-このアクセス層は **単一テーブルの CRUD ＋ 関連データの読み取り（embed）** を型安全にカバーします。
-関連テーブルの列での型付き filter/order（postgrest の `referencedTable`）は未対応で、必要なときは素のクライアント（`$supabaseServer().raw`）に退避します。詳細は [data-access.md](./data-access.md#適用範囲と限界) を参照。
+このアクセス層は **単一テーブルの CRUD（returning 込み）＋ 関連データの読み取り（embed）＋ 行数取得（count）** を型安全にカバーします。
+関連テーブルの列での型付き filter/order（postgrest の `referencedTable`）だけは**意図的に非対応**で、必要なときは素のクライアント（`$supabaseServer().raw`）に退避します。理由と詳細は [data-access.md](./data-access.md#対応しないことreferencedtable) を参照。

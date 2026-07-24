@@ -21,21 +21,23 @@ todo サンプル（`src/schemas/todos.ts` / `src/server/todos.ts` / `src/hooks/
    - 全カラムの `<Name>EntitySchema` を定義 → レスポンスは `.pick()`（必要なら `.extend()` で embed、`.transform()` で camelCase）で派生。
    - `select({ output, select: GET_<NAME>_QUERY, row: <Name>EntitySchema })`。`row` を渡すと filter のカラム型が実テーブル全カラムになる。
    - 操作は `@select|insert|update|delete/<table>` キーで定義。
+   - 取得クエリ文字列（select / returning.select）は定義時にスキーマと突き合わせて検証される。ずれるとテスト・起動で即エラー。
 2. **`src/schemas/index.ts` の `appSchema`** に断片をスプレッド合流（単一の真実）。
 3. **serverFn は `src/server/<resource>.ts`** に fetch も mutation も集約。`queryOptions` を併設。
    - `const $supabase = await $supabaseServer()`。セッション水和（`getSession`）はファクトリ内で一元化済みなので、ハンドラ側で `getSession()` を呼ぶ必要はない。
    - mutation はすべて `createServerFn({ method: "POST" })`（delete も POST）。`result.isErr()` で throw。
 4. **楽観的更新が要るなら `src/hooks/use-<action>-<resource>.ts`**。
    - `useMutation` の `onMutate`（即時キャッシュ更新）→ `onError`（巻き戻し）→ `onSettled`（invalidate）。
+   - `onSettled` の invalidate は `queryClient.isMutating() === 1` のときだけ（並行 mutation の楽観値を上書きしない）。
    - クエリキーは `<resource>QueryOptions().queryKey` から取得（ドリフト防止）。
 5. **routes は薄く**。loader で `ensureQueryData(<resource>QueryOptions())`、コンポーネントは `useSuspenseQuery` で購読。
 6. **コンポーネントは `src/components/<resource>/`**、汎用 UI は `src/components/ui/`。
 
 ## 適用範囲の注意
 
-- 単一テーブル CRUD ＋ embed 読み取り（関連表示）＋ 外部キーでの絞り込みは型付きで対応できる。
-- 関連テーブルの**列**での型付き filter/order（postgrest の `referencedTable`）は未対応 → `$supabaseServer().raw` に退避する。
-- mutation は `void`（`RETURNING` なし）。採番された行が必要なら楽観 temp-id ＋ `onSettled` の再取得で対応。
+- 単一テーブル CRUD ＋ embed 読み取り（関連表示）＋ 外部キーでの絞り込み ＋ 行数取得（`@count/<table>`）は型付きで対応できる。
+- 関連テーブルの**列**での型付き filter/order（postgrest の `referencedTable`）は**意図的に非対応** → `$supabaseServer().raw` に退避する（理由は `docs/data-access.md` の「対応しないこと」）。
+- mutation の戻り値は既定 `void`。採番された行が必要なら操作定義に `returning`（`docs/data-access.md` の「書き込みの返却」）。楽観フックでは temp-id を `onSuccess` で返却行と置換する（todo サンプルの `use-add-todo.ts` が実例）。
 
 ## 仕上げ
 

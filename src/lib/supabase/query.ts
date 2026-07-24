@@ -48,29 +48,66 @@ export type SelectEntry<
   readonly row?: RowSchema;
 };
 
-/** INSERT: 挿入データの検証スキーマ `input`。 */
+/**
+ * mutation の返却指定（PostgREST の `RETURNING` 相当）。
+ * `output` は select と同じく配列スキーマ。`select` 省略時は `"*"`。
+ */
+export type ReturningSpec<Schema extends z.ZodType = z.ZodType> = {
+  readonly output: Schema;
+  readonly select?: string;
+};
+
+/** INSERT: 挿入データの検証スキーマ `input`。`returning` を渡すと挿入行を返す。 */
 export type InsertEntry<I = unknown> = {
   readonly _op: "insert";
   readonly input: z.ZodType<I>;
+  readonly returning?: ReturningSpec;
 };
+
+export type InsertEntryReturning<
+  I = unknown,
+  Ret extends z.ZodType = z.ZodType,
+> = InsertEntry<I> & { readonly returning: ReturningSpec<Ret> };
 
 /** UPDATE: 更新データの検証スキーマ `input`。`row` を渡すと `match` が `Partial<Row>` に。 */
 export type UpdateEntry<I = unknown, R = unknown> = {
   readonly _op: "update";
   readonly input: z.ZodType<I>;
   readonly row?: z.ZodType<R>;
+  readonly returning?: ReturningSpec;
 };
+
+export type UpdateEntryReturning<
+  I = unknown,
+  R = unknown,
+  Ret extends z.ZodType = z.ZodType,
+> = UpdateEntry<I, R> & { readonly returning: ReturningSpec<Ret> };
 
 /** UPSERT: 挿入/更新データの検証スキーマ `input`。 */
 export type UpsertEntry<I = unknown> = {
   readonly _op: "upsert";
   readonly input: z.ZodType<I>;
+  readonly returning?: ReturningSpec;
 };
+
+export type UpsertEntryReturning<
+  I = unknown,
+  Ret extends z.ZodType = z.ZodType,
+> = UpsertEntry<I> & { readonly returning: ReturningSpec<Ret> };
 
 /** DELETE。`row` を渡すと `match` が `Partial<Row>` に型付けされる。 */
 export type DeleteEntry<R = unknown> = {
   readonly _op: "delete";
   readonly row?: z.ZodType<R>;
+};
+
+/**
+ * COUNT: 行数のみを取得する（`head: true`、行は転送しない）。
+ * `row` を渡すと filter のカラム型が実テーブル全カラムで型付けされる（filter を使うなら実質必須）。
+ */
+export type CountEntry<RowSchema extends z.ZodType = z.ZodType> = {
+  readonly _op: "count";
+  readonly row?: RowSchema;
 };
 
 /** 各エントリ生成ヘルパー（`_op` を付与するだけ）。 */
@@ -84,34 +121,68 @@ export const select = <
   ...entry,
 });
 
-export const insert = <I>(
-  entry: Omit<InsertEntry<I>, "_op">,
-): InsertEntry<I> => ({
-  _op: "insert",
-  ...entry,
-});
+export function insert<I, Ret extends z.ZodType>(entry: {
+  input: z.ZodType<I>;
+  returning: ReturningSpec<Ret>;
+}): InsertEntryReturning<I, Ret>;
+export function insert<I>(entry: { input: z.ZodType<I> }): InsertEntry<I>;
+export function insert<I>(entry: {
+  input: z.ZodType<I>;
+  returning?: ReturningSpec;
+}): InsertEntry<I> {
+  return { _op: "insert", ...entry };
+}
 
-export const update = <I, R = unknown>(
-  entry: Omit<UpdateEntry<I, R>, "_op">,
-): UpdateEntry<I, R> => ({
-  _op: "update",
-  ...entry,
-});
+export function update<
+  I,
+  R = unknown,
+  Ret extends z.ZodType = z.ZodType,
+>(entry: {
+  input: z.ZodType<I>;
+  row?: z.ZodType<R>;
+  returning: ReturningSpec<Ret>;
+}): UpdateEntryReturning<I, R, Ret>;
+export function update<I, R = unknown>(entry: {
+  input: z.ZodType<I>;
+  row?: z.ZodType<R>;
+}): UpdateEntry<I, R>;
+export function update<I, R = unknown>(entry: {
+  input: z.ZodType<I>;
+  row?: z.ZodType<R>;
+  returning?: ReturningSpec;
+}): UpdateEntry<I, R> {
+  return { _op: "update", ...entry };
+}
 
-export const upsert = <I>(
-  entry: Omit<UpsertEntry<I>, "_op">,
-): UpsertEntry<I> => ({
-  _op: "upsert",
-  ...entry,
-});
+export function upsert<I, Ret extends z.ZodType>(entry: {
+  input: z.ZodType<I>;
+  returning: ReturningSpec<Ret>;
+}): UpsertEntryReturning<I, Ret>;
+export function upsert<I>(entry: { input: z.ZodType<I> }): UpsertEntry<I>;
+export function upsert<I>(entry: {
+  input: z.ZodType<I>;
+  returning?: ReturningSpec;
+}): UpsertEntry<I> {
+  return { _op: "upsert", ...entry };
+}
 
 export const deleteFrom = <R = unknown>(
   entry?: Omit<DeleteEntry<R>, "_op">,
 ): DeleteEntry<R> => ({ _op: "delete", ...entry });
 
+export const count = <RowSchema extends z.ZodType = z.ZodType>(
+  entry?: Omit<CountEntry<RowSchema>, "_op">,
+): CountEntry<RowSchema> => ({ _op: "count", ...entry });
+
 // ─── スキーママップ型 ─────────────────────────────────────────────────────────
 
-type SupabaseOp = "select" | "insert" | "update" | "upsert" | "delete";
+type SupabaseOp =
+  | "select"
+  | "insert"
+  | "update"
+  | "upsert"
+  | "delete"
+  | "count";
 type OperationKey = `@${SupabaseOp}/${string}`;
 type GetOp<K extends string> = K extends `@${infer Op}/${string}` ? Op : never;
 
@@ -125,16 +196,24 @@ type EntryTypeFor<Op extends string> = Op extends "select"
         ? UpsertEntry
         : Op extends "delete"
           ? DeleteEntry
-          : never;
+          : Op extends "count"
+            ? CountEntry
+            : never;
 
 /** 操作定義のマップ。キーは `@<操作>/<テーブル>` 形式。 */
 export type SupabaseSchemaMap = {
   [K in OperationKey]?: EntryTypeFor<GetOp<K>>;
 };
 
-/** SELECT は出力型（`z.output`）、ミューテーションは `void` を返す。 */
-type OutputOf<E, MutationOutput = void> =
-  E extends SelectEntry<infer Sch, z.ZodType> ? z.output<Sch> : MutationOutput;
+/** SELECT と `returning` 付き mutation は出力型（`z.output`）、COUNT は `number`、それ以外の mutation は `void`。 */
+type OutputOf<E> =
+  E extends SelectEntry<infer Sch, z.ZodType>
+    ? z.output<Sch>
+    : E extends CountEntry<z.ZodType>
+      ? number
+      : E extends { readonly returning: ReturningSpec<infer Sch> }
+        ? z.output<Sch>
+        : void;
 
 type QueryBuilderType = ReturnType<SupabaseClient["from"]>;
 type SelectBuilderType = ReturnType<QueryBuilderType["select"]>;
@@ -230,7 +309,11 @@ type OptionsFor<K extends string, S extends SupabaseSchemaMap> =
             ? S[K & keyof S] extends DeleteEntry<infer R>
               ? { match: MatchOf<R> }
               : never
-            : never;
+            : GetOp<K> extends "count"
+              ? S[K & keyof S] extends CountEntry<infer RowSch>
+                ? { filter?: FilterFn<RowOf<z.input<RowSch>>> } | undefined
+                : undefined
+              : never;
 
 type SupabaseQueryFn<S extends SupabaseSchemaMap> = <
   K extends keyof S & OperationKey,
@@ -239,10 +322,99 @@ type SupabaseQueryFn<S extends SupabaseSchemaMap> = <
   options: OptionsFor<K, S>,
 ) => Promise<Result<OutputOf<S[K]>, SupabaseError>>;
 
-/** スキーマをジェネリック型を保ったまま返すヘルパー（型推論用）。 */
+// ─── select 文字列の定義時検証 ────────────────────────────────────────────────
+// 取得クエリ文字列とレスポンススキーマはカラムを二重に持つ（既知の二重定義）。
+// ずれをテスト・起動時に必ず露見させるため、スキーマ定義時に突き合わせる。
+
+/** select 文字列からトップレベルのカラム/エイリアス名を取り出す（embed の中身は見ない）。 */
+const topLevelColumns = (select: string): string[] => {
+  const tokens: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const ch of select) {
+    if (ch === "," && depth === 0) {
+      tokens.push(current);
+      current = "";
+      continue;
+    }
+    if (ch === "(") depth++;
+    else if (ch === ")") depth--;
+    current += ch;
+  }
+  tokens.push(current);
+  return tokens
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0)
+    .map((t) => {
+      const alias = t.split(":")[0] ?? t;
+      return (alias.split("(")[0] ?? alias).trim();
+    });
+};
+
+/** 配列・transform（pipe）を剥がして素の object スキーマを取り出す。取れなければ null。 */
+const unwrapToObject = (schema: z.ZodType): z.ZodObject | null => {
+  let s: z.ZodType = schema;
+  for (;;) {
+    if (s instanceof z.ZodArray) {
+      s = s.element as z.ZodType;
+      continue;
+    }
+    if (s instanceof z.ZodPipe) {
+      s = s.def.in as z.ZodType;
+      continue;
+    }
+    return s instanceof z.ZodObject ? s : null;
+  }
+};
+
+const assertSelectMatchesSchema = (
+  key: string,
+  select: string | undefined,
+  output: z.ZodType,
+): void => {
+  if (!select || select.trim() === "*") return;
+  const obj = unwrapToObject(output);
+  if (!obj) return;
+  const schemaKeys = Object.keys(obj.shape);
+  const columns = topLevelColumns(select);
+  const missing = schemaKeys.filter((k) => !columns.includes(k));
+  const extra = columns.filter((c) => !schemaKeys.includes(c));
+  if (missing.length > 0 || extra.length > 0) {
+    throw new Error(
+      `Select string for "${key}" does not match its output schema ` +
+        `(missing: [${missing.join(", ")}], extra: [${extra.join(", ")}])`,
+    );
+  }
+};
+
+/**
+ * スキーマをジェネリック型を保ったまま返すヘルパー（型推論用）。
+ * あわせて select / returning の取得カラムと出力スキーマの一致を定義時に検証する。
+ */
 export const createSupabaseSchema = <S extends SupabaseSchemaMap>(
   schema: S,
-): S => schema;
+): S => {
+  for (const [key, entry] of Object.entries(
+    schema as Record<string, AnyEntry | undefined>,
+  )) {
+    if (!entry) continue;
+    if (entry._op === "select") {
+      assertSelectMatchesSchema(key, entry.select, entry.output);
+    } else if (
+      (entry._op === "insert" ||
+        entry._op === "update" ||
+        entry._op === "upsert") &&
+      entry.returning
+    ) {
+      assertSelectMatchesSchema(
+        key,
+        entry.returning.select,
+        entry.returning.output,
+      );
+    }
+  }
+  return schema;
+};
 
 // ─── 内部ディスパッチ ─────────────────────────────────────────────────────────
 // `_op` をトップレベルに持つ判別共用体。`call._op` で分岐すると entry と opts が
@@ -253,7 +425,8 @@ type AnyEntry =
   | InsertEntry
   | UpdateEntry
   | UpsertEntry
-  | DeleteEntry;
+  | DeleteEntry
+  | CountEntry;
 
 type SelectCall = {
   _op: "select";
@@ -280,7 +453,18 @@ type DeleteCall = {
   entry: DeleteEntry;
   opts: { match: Record<string, unknown> };
 };
-type AnyCall = SelectCall | InsertCall | UpdateCall | UpsertCall | DeleteCall;
+type CountCall = {
+  _op: "count";
+  entry: CountEntry;
+  opts: { filter?: FilterFn<unknown> } | undefined;
+};
+type AnyCall =
+  | SelectCall
+  | InsertCall
+  | UpdateCall
+  | UpsertCall
+  | DeleteCall
+  | CountCall;
 
 // アサーション: ジェネリックな条件型は `AnyCall` 共用体へ伝播できないための境界。
 // `OptionsFor` が各キーに対応する opts を導出済みなので安全。
@@ -316,24 +500,84 @@ async function executeSelect(
   return ok(parsed.data);
 }
 
-async function executeInsert(
+async function executeCount(
   client: SupabaseClient,
   table: string,
-  entry: InsertEntry,
-  opts: { data: unknown },
-): Promise<Result<void, SupabaseError>> {
-  const payload = Array.isArray(opts.data) ? opts.data : [opts.data];
-  const parsed = z.array(entry.input).safeParse(payload);
-  if (!parsed.success) {
-    return err(new SupabaseValidationError(parsed.error));
-  }
-  const { error } = await client.from(table).insert(parsed.data);
+  opts: { filter?: FilterFn<unknown> } | undefined,
+): Promise<Result<unknown, SupabaseError>> {
+  // アサーション: executeSelect と同じビルダー境界（キャストの理由もそちらを参照）。
+  const q = client
+    .from(table)
+    .select("*", { count: "exact", head: true }) as SelectBuilderType;
+  const filtered = opts?.filter
+    ? (opts.filter(
+        q as unknown as TypedFilterBuilder<unknown>,
+      ) as unknown as SelectBuilderType)
+    : q;
+  const { count: total, error } = await filtered;
   if (error) {
     return err(
       new SupabaseQueryError(error.message, error.code, error.details),
     );
   }
-  return ok(undefined);
+  if (total === null || total === undefined) {
+    return err(new SupabaseQueryError(`Count for "${table}" was not returned`));
+  }
+  return ok(total);
+}
+
+type MutationResponse = {
+  data: unknown;
+  error: { message: string; code?: string; details?: unknown } | null;
+};
+
+/** mutation ビルダーの必要最小限の形（await 可能＋ `.select()` で返却行を要求できる）。 */
+type MutationBuilder = PromiseLike<MutationResponse> & {
+  select(columns: string): PromiseLike<MutationResponse>;
+};
+
+/** mutation を確定させる。`returning` があれば `.select()` で結果行を取得し検証する。 */
+async function finishMutation(
+  builder: MutationBuilder,
+  returning: ReturningSpec | undefined,
+): Promise<Result<unknown, SupabaseError>> {
+  if (!returning) {
+    const { error } = await builder;
+    if (error) {
+      return err(
+        new SupabaseQueryError(error.message, error.code, error.details),
+      );
+    }
+    return ok(undefined);
+  }
+  const { data, error } = await builder.select(returning.select ?? "*");
+  if (error) {
+    return err(
+      new SupabaseQueryError(error.message, error.code, error.details),
+    );
+  }
+  const parsed = returning.output.safeParse(data);
+  if (!parsed.success) {
+    return err(new SupabaseValidationError(parsed.error));
+  }
+  return ok(parsed.data);
+}
+
+async function executeInsert(
+  client: SupabaseClient,
+  table: string,
+  entry: InsertEntry,
+  opts: { data: unknown },
+): Promise<Result<unknown, SupabaseError>> {
+  const payload = Array.isArray(opts.data) ? opts.data : [opts.data];
+  const parsed = z.array(entry.input).safeParse(payload);
+  if (!parsed.success) {
+    return err(new SupabaseValidationError(parsed.error));
+  }
+  return finishMutation(
+    client.from(table).insert(parsed.data),
+    entry.returning,
+  );
 }
 
 /** 空の `match` は WHERE 句なしで全行に作用してしまうため、実行前に拒否する。 */
@@ -347,7 +591,7 @@ async function executeUpdate(
   table: string,
   entry: UpdateEntry,
   opts: { data: unknown; match: Record<string, unknown> },
-): Promise<Result<void, SupabaseError>> {
+): Promise<Result<unknown, SupabaseError>> {
   if (Object.keys(opts.match).length === 0) {
     return err(emptyMatchError("update", table));
   }
@@ -355,16 +599,13 @@ async function executeUpdate(
   if (!parsed.success) {
     return err(new SupabaseValidationError(parsed.error));
   }
-  const { error } = await client
-    .from(table)
-    .update(parsed.data as Record<string, unknown>)
-    .match(opts.match);
-  if (error) {
-    return err(
-      new SupabaseQueryError(error.message, error.code, error.details),
-    );
-  }
-  return ok(undefined);
+  return finishMutation(
+    client
+      .from(table)
+      .update(parsed.data as Record<string, unknown>)
+      .match(opts.match),
+    entry.returning,
+  );
 }
 
 async function executeUpsert(
@@ -372,19 +613,16 @@ async function executeUpsert(
   table: string,
   entry: UpsertEntry,
   opts: { data: unknown },
-): Promise<Result<void, SupabaseError>> {
+): Promise<Result<unknown, SupabaseError>> {
   const payload = Array.isArray(opts.data) ? opts.data : [opts.data];
   const parsed = z.array(entry.input).safeParse(payload);
   if (!parsed.success) {
     return err(new SupabaseValidationError(parsed.error));
   }
-  const { error } = await client.from(table).upsert(parsed.data);
-  if (error) {
-    return err(
-      new SupabaseQueryError(error.message, error.code, error.details),
-    );
-  }
-  return ok(undefined);
+  return finishMutation(
+    client.from(table).upsert(parsed.data),
+    entry.returning,
+  );
 }
 
 async function executeDelete(
@@ -421,6 +659,9 @@ async function dispatch(
   }
   if (call._op === "upsert") {
     return executeUpsert(client, table, call.entry, call.opts);
+  }
+  if (call._op === "count") {
+    return executeCount(client, table, call.opts);
   }
   return executeDelete(client, table, call.opts);
 }

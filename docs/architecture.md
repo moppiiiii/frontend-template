@@ -99,6 +99,8 @@ route loader
 
 初回表示はサーバーで fetch 済みのデータがキャッシュに載った状態でレンダリングされる。
 
+クエリのグローバル既定は `staleTime: 30_000`（`integrations/tanstack-query/root-provider.tsx`）。0 だと SSR で loader が載せたデータがハイドレーション直後に stale 扱いになり、クライアントで即再フェッチ（二重フェッチ）が走るのを防ぐための値。auth の user クエリだけはガードの失効検知（`revalidateIfStale` との組）に関わるため、グローバル既定に依存させず `userQueryOptions` 側で明示している。
+
 ### 書き込み（serverFn ＋ 楽観的更新）
 
 ```
@@ -140,5 +142,13 @@ beforeLoad: async ({ context, location }) => {
 - **user の取得は `userQueryOptions()`（= `getUser` serverFn）経由**。`ensureQueryData` なので SSR・遷移で二重に叩かず、`use-sign-*` フックのキャッシュ更新と一貫する。
 - **行レベルの認可は Supabase RLS が正**。serverFn 側で所有者チェックを書かないのは、RLS（＋ Cookie セッション）を単一の防衛線に寄せているため。ガードは「未ログインを弾く」までを担う。
 - **RLS ポリシーとテーブル定義の正本は `supabase/migrations/` の SQL**。テーブルを足すときは必ず `enable row level security` とポリシーをセットで書く（RLS を有効にし忘れると全行が公開される）。ポリシー内の `auth.uid()` は Supabase 方言のため、別バックエンドへ移行する場合はこの防衛線を serverFn 層の認可へ移す。
+
+## テスト
+
+Vitest ＋ Testing Library。テストは対象ファイルの隣に `*.test.ts(x)` を置き、`bun run test` で実行する（DOM が要るファイルは先頭に `// @vitest-environment jsdom`）。
+
+- **フック（楽観的更新）**: serverFn を `vi.mock` で切り離し、「即時反映 → 失敗で巻き戻し」のキャッシュ契約を `renderHook` で検証する（例: `src/hooks/use-sign-in.test.tsx`）。
+- **クエリエンジン**: PostgREST ビルダーのモックで `Result` の成否・検証動作を確認する（`src/lib/supabase/query.test.ts`）。
+- **型契約**: `expectTypeOf` ＋ `@ts-expect-error` で書く。実行時ではなく `bun run check`（tsgo）が検証する。
 
 詳しいクエリ層の仕組みは [data-access.md](./data-access.md) を参照。

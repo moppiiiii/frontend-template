@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import * as z from "zod";
 
 import {
+  count,
   createSupabaseClient,
   createSupabaseSchema,
   deleteFrom,
@@ -11,6 +12,7 @@ import {
   SupabaseQueryError,
   SupabaseValidationError,
   update,
+  upsert,
 } from "./query";
 
 const UUID = "00000000-0000-0000-0000-000000000000";
@@ -63,9 +65,10 @@ const itemsSchema = createSupabaseSchema({
     row: ItemEntitySchema,
   }),
   "@delete/items": deleteFrom({ row: ItemEntitySchema }),
+  "@count/items": count({ row: ItemEntitySchema }),
 });
 
-type QueryResult = { data: unknown; error: unknown };
+type QueryResult = { data: unknown; error: unknown; count?: number | null };
 type Call = { method: string; args: unknown[] };
 
 // PostgREST のチェーンビルダーのモック。各メソッドは自身を返して呼び出しを記録し、
@@ -202,14 +205,170 @@ describe("createSupabaseClient", () => {
       expect(has(calls, "insert")).toBe(false);
     });
 
-    it("単一データを配列に包んで挿入する", async () => {
+    it("単一データを配列に包んで挿入する（returning なしは select を呼ばず void）", async () => {
       const { client, calls } = createMockClient({ data: null, error: null });
       const $q = createSupabaseClient({ client, schema: itemsSchema });
 
       const result = await $q("@insert/items", { data: { title: "hi" } });
 
-      expect(result.isOk()).toBe(true);
+      expect(result._unsafeUnwrap()).toBeUndefined();
       expect(find(calls, "insert")?.args[0]).toEqual([{ title: "hi" }]);
+      expect(has(calls, "select")).toBe(false);
+    });
+  });
+
+  describe("count", () => {
+    it("行数を number で返す（head: true で行は転送しない）", async () => {
+      const { client, calls } = createMockClient({
+        data: null,
+        error: null,
+        count: 42,
+      });
+      const $q = createSupabaseClient({ client, schema: itemsSchema });
+
+      const result = await $q("@count/items", {
+        filter: (q) => q.eq("completed", false),
+      });
+
+      expect(result._unsafeUnwrap()).toBe(42);
+      expect(find(calls, "select")?.args).toEqual([
+        "*",
+        { count: "exact", head: true },
+      ]);
+      expect(has(calls, "eq")).toBe(true);
+      expectTypeOf(result._unsafeUnwrap()).toEqualTypeOf<number>();
+    });
+
+    it("count が返らなければ SupabaseQueryError", async () => {
+      const { client } = createMockClient({ data: null, error: null });
+      const $q = createSupabaseClient({ client, schema: itemsSchema });
+
+      const result = await $q("@count/items", {});
+
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(SupabaseQueryError);
+    });
+  });
+
+  describe("returning", () => {
+    const returningSchema = createSupabaseSchema({
+      "@insert/items": insert({
+        input: z.object({ title: z.string().min(1) }),
+        returning: {
+          output: z.array(ItemResponseSchema),
+          select: GET_ITEMS_QUERY,
+        },
+      }),
+      "@update/items": update({
+        input: z.object({ completed: z.boolean().optional() }),
+        row: ItemEntitySchema,
+        returning: {
+          output: z.array(ItemResponseSchema),
+          select: GET_ITEMS_QUERY,
+        },
+      }),
+    });
+
+    const row = {
+      id: UUID,
+      title: "hi",
+      completed: false,
+      created_at: "2020-01-01T00:00:00Z",
+      category: null,
+    };
+
+    it("insert: 挿入行を select で取得し、検証・変換して返す", async () => {
+      const { client, calls } = createMockClient({ data: [row], error: null });
+      const $q = createSupabaseClient({ client, schema: returningSchema });
+
+      const result = await $q("@insert/items", { data: { title: "hi" } });
+
+      expect(result._unsafeUnwrap()).toEqual([
+        {
+          id: UUID,
+          title: "hi",
+          completed: false,
+          createdAt: "2020-01-01T00:00:00Z",
+          category: null,
+        },
+      ]);
+      expect(find(calls, "select")?.args[0]).toBe(GET_ITEMS_QUERY);
+      expectTypeOf(result._unsafeUnwrap()).toEqualTypeOf<Item[]>();
+    });
+
+    it("update: match を適用したうえで更新行を返す", async () => {
+      const { client, calls } = createMockClient({ data: [row], error: null });
+      const $q = createSupabaseClient({ client, schema: returningSchema });
+
+      const result = await $q("@update/items", {
+        data: { completed: true },
+        match: { id: UUID },
+      });
+
+      expect(result.isOk()).toBe(true);
+      expect(find(calls, "match")?.args[0]).toEqual({ id: UUID });
+      expect(find(calls, "select")?.args[0]).toBe(GET_ITEMS_QUERY);
+    });
+
+    it("返却行がスキーマ不一致なら SupabaseValidationError", async () => {
+      const { client } = createMockClient({
+        // title 欠落
+        data: [{ id: UUID, completed: false, created_at: "x", category: null }],
+        error: null,
+      });
+      const $q = createSupabaseClient({ client, schema: returningSchema });
+
+      const result = await $q("@insert/items", { data: { title: "hi" } });
+
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(SupabaseValidationError);
+    });
+  });
+
+  describe("createSupabaseSchema の定義時検証", () => {
+    it("select 文字列にスキーマのカラムが欠けていると throw", () => {
+      expect(() =>
+        createSupabaseSchema({
+          "@select/items": select({
+            output: z.array(z.object({ id: z.uuid(), title: z.string() })),
+            select: "id",
+          }),
+        }),
+      ).toThrow(/missing: \[title\]/);
+    });
+
+    it("スキーマに無いカラムが select にあると throw", () => {
+      expect(() =>
+        createSupabaseSchema({
+          "@select/items": select({
+            output: z.array(z.object({ id: z.uuid(), title: z.string() })),
+            select: "id, title, nope",
+          }),
+        }),
+      ).toThrow(/extra: \[nope\]/);
+    });
+
+    it("embed はトップレベルのエイリアス名で照合される（transform 越しでも可）", () => {
+      expect(() =>
+        createSupabaseSchema({
+          "@select/items": select({
+            output: z.array(ItemResponseSchema),
+            select: GET_ITEMS_QUERY,
+          }),
+        }),
+      ).not.toThrow();
+    });
+
+    it("returning の select も検証される", () => {
+      expect(() =>
+        createSupabaseSchema({
+          "@upsert/items": upsert({
+            input: z.object({ title: z.string() }),
+            returning: {
+              output: z.array(z.object({ id: z.uuid(), title: z.string() })),
+              select: "id",
+            },
+          }),
+        }),
+      ).toThrow(/missing: \[title\]/);
     });
   });
 

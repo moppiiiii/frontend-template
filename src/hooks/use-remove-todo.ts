@@ -25,7 +25,10 @@ export function useRemoveTodo() {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey });
+      // 並行 mutation 中の invalidate は楽観値を上書きするため、最後の 1 件だけ再同期する。
+      if (queryClient.isMutating() === 1) {
+        queryClient.invalidateQueries({ queryKey });
+      }
     },
   });
 }

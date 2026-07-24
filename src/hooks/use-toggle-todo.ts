@@ -31,8 +31,11 @@ export function useToggleTodo() {
       }
     },
     onSettled: () => {
-      // 成否に関わらずサーバーの真実と再同期する。
-      queryClient.invalidateQueries({ queryKey });
+      // 成否に関わらずサーバーの真実と再同期する。ただし並行 mutation 中に
+      // invalidate すると先行の refetch が後続の楽観値を上書きするため、最後の 1 件だけ行う。
+      if (queryClient.isMutating() === 1) {
+        queryClient.invalidateQueries({ queryKey });
+      }
     },
   });
 }

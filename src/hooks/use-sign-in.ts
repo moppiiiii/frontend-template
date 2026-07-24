@@ -12,8 +12,10 @@ export function useSignIn() {
       signIn({ data: vars }),
     onSuccess: (user) => {
       queryClient.setQueryData(queryKey, user);
-      // ログイン前後でデータの見え方が変わるため全体を再検証する。
-      queryClient.invalidateQueries();
+      // ログイン前後でデータの見え方が変わるため、今セットした auth 以外を再検証する。
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] !== queryKey[0],
+      });
     },
   });
 }

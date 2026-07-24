@@ -36,6 +36,7 @@ export function TodoItem({ todo }: { todo: Todo }) {
         variant="ghost"
         size="sm"
         onClick={() => remove.mutate({ id: todo.id })}
+        aria-label={`「${todo.title}」を削除`}
       >
         削除
       </Button>
